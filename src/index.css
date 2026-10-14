@@ -1,0 +1,279 @@
+@import "tailwindcss";
+@import "@avan-persian/themes/default.css";
+@import "@avan-persian/react/client.css";
+
+@theme {
+  --font-sans: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Shabnam', 'Sahel', 'Tahoma', sans-serif;
+  --font-mono: 'Vazirmatn', 'JetBrains Mono', monospace;
+}
+
+:root,
+body {
+  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Shabnam', 'Sahel', 'Tahoma', sans-serif;
+  --avan-accent: #0284c7;
+  --avan-accent-foreground: #ffffff;
+  --avan-popover-z-index: 99999;
+}
+
+body, button, input, select, textarea, optgroup, kbd, code {
+  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Shabnam', 'Sahel', 'Tahoma', sans-serif;
+}
+
+@layer base {
+  * {
+    font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Shabnam', 'Sahel', 'Tahoma', sans-serif;
+  }
+}
+
+/* --- Avan Persian Date Picker & Year Picker Layout & Tight Styling --- */
+.avan-date-picker,
+.avan-year-picker {
+  position: relative;
+  width: 100%;
+}
+
+/* Trigger button */
+.avan-date-picker__trigger,
+.avan-date-picker__input,
+.avan-year-picker__trigger,
+.avan-year-picker__input {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 0.45rem 0.75rem 0.45rem 2rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.625rem !important;
+  color: #1e293b !important;
+  cursor: pointer !important;
+  min-height: 2.25rem !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+  transition: all 0.15s ease !important;
+}
+
+.avan-date-picker__trigger:hover,
+.avan-date-picker__input:hover,
+.avan-year-picker__trigger:hover,
+.avan-year-picker__input:hover {
+  border-color: #cbd5e1 !important;
+  background-color: #f8fafc !important;
+}
+
+.avan-date-picker__trigger:focus-visible,
+.avan-date-picker__input:focus-visible,
+.avan-year-picker__trigger:focus-visible,
+.avan-year-picker__input:focus-visible,
+.avan-date-picker--open .avan-date-picker__trigger,
+.avan-date-picker--open .avan-date-picker__input,
+.avan-year-picker--open .avan-year-picker__trigger,
+.avan-year-picker--open .avan-year-picker__input {
+  border-color: #0284c7 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12) !important;
+}
+
+/* Popover wrapper - remove excess margins, ensure tight fit to calendar */
+.avan-date-picker__popover,
+.avan-year-picker__popover,
+.avan-picker__popover {
+  position: absolute !important;
+  z-index: 99999 !important;
+  width: max-content !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin-top: 0.35rem !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Calendar box - tightly wrap content without wide empty margins */
+.avan-calendar {
+  width: 18.5rem !important;
+  max-width: 18.5rem !important;
+  padding: 0.75rem !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.14), 0 4px 6px -2px rgba(15, 23, 42, 0.05) !important;
+  box-sizing: border-box !important;
+}
+
+.avan-calendar__grid {
+  width: 100% !important;
+}
+
+.avan-calendar__day {
+  margin: 0 auto !important;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 10.5pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* When printing from receipt modal, hide main web app background */
+  .has-receipt-modal > aside,
+  .has-receipt-modal > div.flex-1,
+  .has-receipt-modal .toast-container,
+  .has-receipt-modal header {
+    display: none !important;
+  }
+
+  /* Turn receipt modal overlay into full-width printable page */
+  .receipt-modal-backdrop {
+    position: static !important;
+    inset: auto !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  .receipt-modal-card {
+    position: static !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .receipt-a4-sheet {
+    box-shadow: none !important;
+    border: 1.5px solid #1e293b !important;
+    border-radius: 4px !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 6mm 7mm !important;
+    background: #ffffff !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Strict table border enforcement for all printers */
+  .receipt-print-table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  .receipt-print-table th,
+  .receipt-print-table td {
+    border: 1px solid #475569 !important;
+  }
+}
+
+/* From Uiverse.io by TimTrayler - Animated Toggle Switch */
+.switch {
+  --secondary-container: #3a4b39;
+  --primary: #84da89;
+  font-size: 15px;
+  position: relative;
+  display: inline-block;
+  width: 3.7em;
+  height: 1.8em;
+  direction: ltr;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.switch input {
+  display: none;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #313033;
+  transition: .2s;
+  border-radius: 30px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 1.4em;
+  width: 1.4em;
+  border-radius: 20px;
+  left: 0.2em;
+  bottom: 0.2em;
+  background-color: #aeaaae;
+  transition: .4s;
+}
+
+.switch input:checked + .slider::before {
+  background-color: var(--primary);
+}
+
+.switch input:checked + .slider {
+  background-color: var(--secondary-container);
+}
+
+.switch input:focus + .slider {
+  box-shadow: 0 0 1px var(--secondary-container);
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(1.9em);
+}
+
+

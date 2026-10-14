@@ -1,0 +1,435 @@
+import React, { useState, useEffect } from 'react';
+import { X, Check, AlertCircle, Briefcase, MapPin, Phone, User, FileText, Edit } from 'lucide-react';
+import { Patient, Gender } from '../../types';
+
+interface EditPatientModalProps {
+  isOpen: boolean;
+  patient: Patient | null;
+  onClose: () => void;
+  onPatientUpdated: (updated: Patient) => void;
+  existingPatients?: Patient[];
+}
+
+export const EditPatientModal: React.FC<EditPatientModalProps> = ({
+  isOpen,
+  patient,
+  onClose,
+  onPatientUpdated,
+  existingPatients = [],
+}) => {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [job, setJob] = useState('');
+  const [address, setAddress] = useState('');
+  const [nationalId, setNationalId] = useState('');
+  const [age, setAge] = useState<string>('');
+  const [gender, setGender] = useState<Gender>('female');
+  const [medicalHistory, setMedicalHistory] = useState('');
+  const [allergies, setAllergies] = useState('');
+  const [notes, setNotes] = useState('');
+
+  // Form validation state
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  // Synchronize form when patient prop changes or modal opens
+  useEffect(() => {
+    if (patient && isOpen) {
+      setFirstName(patient.firstName || '');
+      setLastName(patient.lastName || '');
+      setPhone(patient.phone || '');
+      setJob(patient.job || '');
+      setAddress(patient.address === 'ثبت نشده' ? '' : (patient.address || ''));
+      setNationalId(patient.nationalId || '');
+      setAge(patient.age ? String(patient.age) : '');
+      setGender(patient.gender || 'female');
+      setMedicalHistory(patient.medicalHistory === 'ندارد' ? '' : (patient.medicalHistory || ''));
+      setAllergies(patient.allergies === 'ندارد' ? '' : (patient.allergies || ''));
+      setNotes(patient.notes || '');
+      setTouched({});
+      setSubmitAttempted(false);
+    }
+  }, [patient, isOpen]);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !patient) return null;
+
+  const isFirstNameValid = firstName.trim().length > 0;
+  const isLastNameValid = lastName.trim().length > 0;
+  const isPhoneValid = phone.trim().length >= 8;
+  const canSubmit = isFirstNameValid && isLastNameValid && isPhoneValid;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitAttempted(true);
+
+    if (!canSubmit) {
+      return;
+    }
+
+    const updatedPatient: Patient = {
+      ...patient,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: phone.trim(),
+      job: job.trim() || undefined,
+      address: address.trim() || 'ثبت نشده',
+      nationalId: nationalId.trim() || '',
+      age: age ? parseInt(age, 10) || 0 : 0,
+      gender,
+      medicalHistory: medicalHistory.trim() || 'ندارد',
+      allergies: allergies.trim() || 'ندارد',
+      notes: notes.trim() || undefined,
+    };
+
+    onPatientUpdated(updatedPatient);
+    onClose();
+  };
+
+  // Check duplicate phone warning (excluding current patient)
+  const isDuplicatePhone =
+    phone.trim().length >= 8 &&
+    existingPatients.some(
+      (p) => p.id !== patient.id && p.phone.trim() === phone.trim()
+    );
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] text-right"
+        dir="rtl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-amber-50/70 via-white to-sky-50/50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-xs">
+              <Edit className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">اصلاح و ویرایش پرونده بیمار</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                ویرایش مشخصات: <span className="font-semibold text-slate-800">{patient.firstName} {patient.lastName}</span>
+                <span className="font-mono text-slate-400 mr-1.5">({patient.id})</span>
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+            title="بستن پنجره"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto p-5 sm:p-6 space-y-5 flex-1 text-xs">
+          {/* Validation Notice if attempted submit without required fields */}
+          {submitAttempted && !canSubmit && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-rose-700">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-xs">امکان ذخیره تغییرات وجود ندارد!</p>
+                <p className="text-[11px] text-rose-600 mt-0.5">
+                  لطفاً فیلدهای اجباری مشخص‌شده با نشان قرمز (نام، نام خانوادگی و شماره تماس) را تکمیل فرمایید.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Section 1: Required Identity Information */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+              <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                <User className="w-4 h-4 text-sky-600" />
+                اطلاعات اصلی بیمار
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* First Name */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  نام <span className="text-rose-600 font-bold">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  onBlur={() => setTouched((p) => ({ ...p, firstName: true }))}
+                  placeholder="مثال: سارا"
+                  className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-50/60 focus:bg-white text-xs outline-hidden transition-all ${
+                    (submitAttempted || touched.firstName) && !isFirstNameValid
+                      ? 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/30'
+                      : 'border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-100'
+                  }`}
+                  autoFocus
+                />
+                {(submitAttempted || touched.firstName) && !isFirstNameValid && (
+                  <p className="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    وارد کردن نام بیمار اجباری است.
+                  </p>
+                )}
+              </div>
+
+              {/* Last Name */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  نام خانوادگی <span className="text-rose-600 font-bold">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  onBlur={() => setTouched((p) => ({ ...p, lastName: true }))}
+                  placeholder="مثال: رضایی"
+                  className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-50/60 focus:bg-white text-xs outline-hidden transition-all ${
+                    (submitAttempted || touched.lastName) && !isLastNameValid
+                      ? 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/30'
+                      : 'border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-100'
+                  }`}
+                />
+                {(submitAttempted || touched.lastName) && !isLastNameValid && (
+                  <p className="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    وارد کردن نام خانوادگی بیمار اجباری است.
+                  </p>
+                )}
+              </div>
+
+              {/* Phone Number */}
+              <div className="sm:col-span-2">
+                <label className="block text-slate-700 font-semibold mb-1">
+                  شماره تماس همراه <span className="text-rose-600 font-bold">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
+                  <input
+                    type="tel"
+                    dir="ltr"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    onBlur={() => setTouched((p) => ({ ...p, phone: true }))}
+                    placeholder="09123456789"
+                    className={`w-full pr-10 pl-3.5 py-2.5 rounded-xl border bg-slate-50/60 focus:bg-white text-xs font-mono outline-hidden transition-all text-right ${
+                      (submitAttempted || touched.phone) && !isPhoneValid
+                        ? 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/30'
+                        : 'border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-100'
+                    }`}
+                  />
+                </div>
+                {(submitAttempted || touched.phone) && !isPhoneValid && (
+                  <p className="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    وارد کردن شماره تماس معتبر (حداقل ۸ رقم) اجباری است.
+                  </p>
+                )}
+                {isDuplicatePhone && (
+                  <p className="text-amber-700 text-[11px] mt-1 flex items-center gap-1 bg-amber-50 p-1.5 rounded-lg border border-amber-200/80">
+                    <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                    توجه: پرونده دیگری با این شماره تماس در سیستم ثبت شده است.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Personal & Contact Information */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+              <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                <Briefcase className="w-4 h-4 text-sky-600" />
+                مشخصات شغلی، سکونت و فردی
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Job / Occupation */}
+              <div>
+                <label className="block text-slate-700 font-medium mb-1 flex items-center gap-1">
+                  <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                  <span>شغل / حرفه بیمار</span>
+                </label>
+                <input
+                  type="text"
+                  value={job}
+                  onChange={(e) => setJob(e.target.value)}
+                  placeholder="مثال: مهندس، کارمند، پزشک، خانه‌دار..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 text-xs outline-hidden transition-all"
+                />
+              </div>
+
+              {/* National ID */}
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">
+                  کد ملی
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={nationalId}
+                  onChange={(e) => setNationalId(e.target.value)}
+                  placeholder="0012345678"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 text-xs font-mono outline-hidden transition-all text-right"
+                />
+              </div>
+
+              {/* Age */}
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">
+                  سن
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  placeholder="مثال: ۳۲"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 text-xs outline-hidden transition-all"
+                />
+              </div>
+
+              {/* Gender */}
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">
+                  جنسیت
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGender('female')}
+                    className={`py-2 px-3 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      gender === 'female'
+                        ? 'bg-rose-50 border-rose-300 text-rose-700 font-bold shadow-xs'
+                        : 'border-slate-200 bg-slate-50/60 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>خانم</span>
+                    {gender === 'female' && <Check className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGender('male')}
+                    className={`py-2 px-3 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      gender === 'male'
+                        ? 'bg-sky-50 border-sky-300 text-sky-700 font-bold shadow-xs'
+                        : 'border-slate-200 bg-slate-50/60 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>آقا</span>
+                    {gender === 'male' && <Check className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Address */}
+              <div className="sm:col-span-2">
+                <label className="block text-slate-700 font-medium mb-1 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  <span>آدرس محل سکونت</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="مثال: تهران، سعادت‌آباد، خیابان سرو غربی..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 text-xs outline-hidden transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Medical Notes & Warnings */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+              <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-sky-600" />
+                سوابق پزشکی و حساسیت‌ها
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">
+                  سابقه بیماری خاص یا زمینه‌ای:
+                </label>
+                <input
+                  type="text"
+                  value={medicalHistory}
+                  onChange={(e) => setMedicalHistory(e.target.value)}
+                  placeholder="مثال: تیروئید، دیابت، فشار خون"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 text-xs outline-hidden transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">
+                  حساسیت‌های دارویی یا پوستی:
+                </label>
+                <input
+                  type="text"
+                  value={allergies}
+                  onChange={(e) => setAllergies(e.target.value)}
+                  placeholder="مثال: حساسیت به لیدوکائین یا بتادین"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 text-xs outline-hidden transition-all"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-slate-700 font-medium mb-1">
+                  یادداشت و توصیه‌های پرونده:
+                </label>
+                <textarea
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="هرگونه یادداشت برای پرونده بیمار..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 text-xs outline-hidden transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Form Actions Footer */}
+          <div className="pt-4 border-t border-slate-200/80 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-medium hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              انصراف
+            </button>
+
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-md shadow-amber-600/20 transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Check className="w-4 h-4" />
+              <span>ذخیره تغییرات و اصلاح پرونده</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

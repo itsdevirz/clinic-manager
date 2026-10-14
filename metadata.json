@@ -1,0 +1,7 @@
+{
+  "name": "سیستم جامع مدیریت مطب و کلینیک زیبایی",
+  "description": "سامانه مدیریت یکپارچه پذیرش، پرونده بیماران، خدمات پزشکی و زیبایی، اپراتورها و گزارش‌های مالی",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
