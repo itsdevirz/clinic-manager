@@ -5,7 +5,10 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # امکان اجرای دستی با یک کلیک در پنل گیت‌هاب
+  workflow_dispatch: # امکان اجرای دستی در هر زمان با زدن دکمه Run workflow در تب Actions گیت‌هاب
+
+permissions:
+  contents: write
 
 jobs:
   build-windows-exe:
@@ -16,30 +19,21 @@ jobs:
       - name: دریافت کدهای پروژه (Checkout)
         uses: actions/checkout@v4
 
-      - name: نصب Node.js
+      - name: نصب محیط Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: راه‌اندازی کامپایلر Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: نصب پکیج‌های فرانت‌اند
-        run: npm ci || npm install
+      - name: نصب وابستگی‌های پکیج‌ها
+        run: npm install --legacy-peer-deps
 
       - name: بیلد خودکار نرم‌افزار دسکتاپ با Tauri
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: v__VERSION__
-          releaseName: 'نسخه رسمی دسکتاپ __VERSION__'
-          releaseBody: 'فایل اجرایی دسکتاپ سامانه مدیریت کلینیک و مطب زیبایی'
-          releaseDraft: false
-          prerelease: false
+        run: npm run tauri:build
 
-      - name: ذخیره و آپلود فایل‌های EXE جهت دانلود مستقیم
+      - name: آپلود فایل‌های اجرایی جهت دانلود (Artifacts)
         uses: actions/upload-artifact@v4
         with:
           name: ClinicManagement-Windows-EXE
@@ -47,3 +41,4 @@ jobs:
             src-tauri/target/release/ClinicManagement.exe
             src-tauri/target/release/bundle/nsis/*.exe
           retention-days: 30
+          if-no-files-found: warn
