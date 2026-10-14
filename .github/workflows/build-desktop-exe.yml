@@ -30,8 +30,11 @@ jobs:
       - name: نصب وابستگی‌های پکیج‌ها
         run: npm install --legacy-peer-deps
 
-      - name: بیلد خودکار نرم‌افزار دسکتاپ با Tauri
-        run: npm run tauri:build
+      - name: بیلد فرانت‌اند
+        run: npm run build
+
+      - name: ساخت فایل‌های EXE دسکتاپ با Tauri CLI
+        run: npx --yes @tauri-apps/cli build --ignore-version-mismatches
 
       - name: آپلود فایل‌های اجرایی جهت دانلود (Artifacts)
         uses: actions/upload-artifact@v4
