@@ -1,0 +1,19 @@
+[package]
+name = "clinic-management-app"
+version = "1.0.0"
+description = "سیستم جامع مدیریت مطب و کلینیک زیبایی"
+authors = ["Clinic Management Team"]
+edition = "2021"
+
+[lib]
+name = "clinic_management_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.3", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

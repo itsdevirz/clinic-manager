@@ -8,7 +8,11 @@ import {
   Building,
   CheckCircle2,
   AlertTriangle,
-  FileJson
+  FileJson,
+  Monitor,
+  Terminal,
+  Copy,
+  Check
 } from 'lucide-react';
 import { ClinicSettings } from '../../types';
 
@@ -35,6 +39,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [pinMessage, setPinMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCmd(id);
+    setTimeout(() => setCopiedCmd(null), 2000);
+  };
 
   const handleSaveClinicInfo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -296,6 +307,110 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <RotateCcw className="w-3.5 h-3.5" />
               <span>بازنشانی به داده‌های اولیه</span>
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Desktop Windows EXE (Tauri) */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-2xl border border-slate-800 p-6 shadow-md space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-400">
+              <Monitor className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white text-base flex items-center gap-2">
+                خروجی نرم‌افزار دسکتاپ ویندوز (فایل EXE با Tauri)
+                <span className="px-2 py-0.5 text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full font-sans">
+                  Tauri v2 آماده است
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                پوشه اختصاصی <code className="text-sky-300 font-mono">desktop-builder</code> و تنظیمات بومی <code className="text-sky-300 font-mono">src-tauri</code> با موفقیت آماده شد.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
+          {/* Card 1: One-click builder */}
+          <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center gap-2 text-sky-400 font-bold mb-1.5">
+                <span className="w-5 h-5 rounded-full bg-sky-500/20 flex items-center justify-center text-xs">۱</span>
+                <span>روش ۱-کلیکه (بدون نیاز به کد)</span>
+              </div>
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                کافیست وارد پوشه <span className="text-white font-semibold">desktop-builder</span> شوید و روی فایل زیر دابل‌کلیک کنید:
+              </p>
+              <div className="mt-2 p-2 bg-slate-900/90 rounded-lg border border-slate-700 font-mono text-[11px] text-emerald-400 text-center select-all">
+                build-exe.bat
+              </div>
+            </div>
+            <div className="text-[10px] text-slate-400">
+              اسکریپت خودکار وابستگی‌ها را بررسی کرده و فایل EXE را کامپایل می‌کند.
+            </div>
+          </div>
+
+          {/* Card 2: Terminal command */}
+          <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center gap-2 text-sky-400 font-bold mb-1.5">
+                <span className="w-5 h-5 rounded-full bg-sky-500/20 flex items-center justify-center text-xs">۲</span>
+                <span>دستور مستقیم در خط فرمان</span>
+              </div>
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                در ترمینال روت پروژه این دستور را جهت ساخت فایل نهایی اجرا کنید:
+              </p>
+              <div className="mt-2 p-2 bg-slate-900/90 rounded-lg border border-slate-700 font-mono text-[11px] text-sky-300 flex items-center justify-between">
+                <span>npm run tauri:build</span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard('npm run tauri:build', 'cmd1')}
+                  className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition-colors"
+                  title="کپی دستور"
+                >
+                  {copiedCmd === 'cmd1' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+            <div className="text-[10px] text-slate-400">
+              برای تست زنده دسکتاپ: <code className="text-slate-200">npm run tauri:dev</code>
+            </div>
+          </div>
+
+          {/* Card 3: Output Exe files */}
+          <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center gap-2 text-emerald-400 font-bold mb-1.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs">۳</span>
+                <span>محل تحویل فایل‌های EXE</span>
+              </div>
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                پس از بیلد، فایل‌ها در دو فرمت پرتابل و نصابی ذخیره می‌شوند:
+              </p>
+              <div className="mt-2 space-y-1 font-mono text-[10px]">
+                <div className="p-1.5 bg-slate-900/90 rounded border border-slate-700 text-slate-300 truncate" title="src-tauri/target/release/bundle/nsis/">
+                  📦 فایل نصبی: <span className="text-emerald-400">bundle/nsis/*-setup.exe</span>
+                </div>
+                <div className="p-1.5 bg-slate-900/90 rounded border border-slate-700 text-slate-300 truncate" title="src-tauri/target/release/ClinicManagement.exe">
+                  ⚡ فایل پرتابل: <span className="text-sky-300">ClinicManagement.exe</span>
+                </div>
+              </div>
+            </div>
+            <div className="text-[10px] text-slate-400">
+              حجم نهایی: حدود ۱۰ الی ۱۵ مگابایت (فوق‌العاده سبک و پرسرعت)
+            </div>
+          </div>
+        </div>
+
+        {/* Documentation Banner */}
+        <div className="p-3 bg-sky-950/40 border border-sky-800/40 rounded-xl flex items-center justify-between text-xs text-sky-200">
+          <div className="flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-sky-400 shrink-0" />
+            <span>
+              راهنمای گام‌به‌گام فارسی و نصب پیش‌نیازها در فایل <strong className="text-white font-mono">desktop-builder/راهنمای_جامع_ساخت_فایل_EXE.md</strong> قرار داده شده است.
+            </span>
           </div>
         </div>
       </div>
