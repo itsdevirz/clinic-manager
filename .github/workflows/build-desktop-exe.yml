@@ -1,0 +1,49 @@
+name: ساخت خودکار فایل خروجی ویندوز (Tauri Desktop EXE)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # امکان اجرای دستی با یک کلیک در پنل گیت‌هاب
+
+jobs:
+  build-windows-exe:
+    name: Build Windows EXE
+    runs-on: windows-latest
+
+    steps:
+      - name: دریافت کدهای پروژه (Checkout)
+        uses: actions/checkout@v4
+
+      - name: نصب Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: راه‌اندازی کامپایلر Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: نصب پکیج‌های فرانت‌اند
+        run: npm ci || npm install
+
+      - name: بیلد خودکار نرم‌افزار دسکتاپ با Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: 'نسخه رسمی دسکتاپ __VERSION__'
+          releaseBody: 'فایل اجرایی دسکتاپ سامانه مدیریت کلینیک و مطب زیبایی'
+          releaseDraft: false
+          prerelease: false
+
+      - name: ذخیره و آپلود فایل‌های EXE جهت دانلود مستقیم
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClinicManagement-Windows-EXE
+          path: |
+            src-tauri/target/release/ClinicManagement.exe
+            src-tauri/target/release/bundle/nsis/*.exe
+          retention-days: 30
