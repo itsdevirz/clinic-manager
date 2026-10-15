@@ -31,8 +31,8 @@
     "active": true,
     "targets": "all",
     "resources": {
-      "../dist-server/server.cjs": "backend/server.cjs",
-      "../build/node-win/node.exe": "backend/node.exe",
+      "../dist-server/server.cjs": "server.cjs",
+      "../build/node-win/node.exe": "node.exe",
       "../mongo-config.json": "mongo-config.json"
     },
     "icon": [
