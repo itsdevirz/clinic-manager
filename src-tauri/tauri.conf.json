@@ -30,10 +30,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": [
-      "../dist-server/*",
-      "../mongo-config.json"
-    ],
+    "resources": {
+      "../dist-server/server.cjs": "backend/server.cjs",
+      "../build/node-win/node.exe": "backend/node.exe",
+      "../mongo-config.json": "mongo-config.json"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
