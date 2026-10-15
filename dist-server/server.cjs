@@ -23,6 +23,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // node_modules/depd/index.js
 var require_depd = __commonJS({
@@ -46803,43 +46804,48 @@ var require_promise = __commonJS({
 });
 
 // server.ts
+var server_exports = {};
+module.exports = __toCommonJS(server_exports);
 var import_express = __toESM(require_express2(), 1);
 var import_path = __toESM(require("path"), 1);
 var import_fs = __toESM(require("fs"), 1);
 var import_promise = __toESM(require_promise(), 1);
 process.env.DISABLE_HMR = "true";
 var app = (0, import_express.default)();
-var PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
-function getConfigFilePath() {
-  if (process.env.CONFIG_PATH) return process.env.CONFIG_PATH;
-  const cwdPath = import_path.default.join(process.cwd(), "mysql-config.json");
-  if (import_fs.default.existsSync(cwdPath)) return cwdPath;
-  const exeNeighbor = import_path.default.join(import_path.default.dirname(process.execPath), "mysql-config.json");
-  if (import_fs.default.existsSync(exeNeighbor)) return exeNeighbor;
-  const dirPath = import_path.default.join(__dirname, "mysql-config.json");
-  if (import_fs.default.existsSync(dirPath)) return dirPath;
-  const parentDirPath = import_path.default.join(__dirname, "..", "mysql-config.json");
-  if (import_fs.default.existsSync(parentDirPath)) return parentDirPath;
-  return cwdPath;
-}
+var PORT = process.env.PORT || 3e3;
 app.use(import_express.default.json({ limit: "50mb" }));
+app.use(import_express.default.urlencoded({ extended: true, limit: "50mb" }));
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
+    res.sendStatus(200);
+    return;
   }
   next();
 });
 var DEFAULT_CONFIG = {
-  host: process.env.MYSQL_HOST || "127.0.0.1",
-  port: parseInt(process.env.MYSQL_PORT || "3306", 10),
-  user: process.env.MYSQL_USER || "root",
-  password: process.env.MYSQL_PASSWORD || "",
-  database: process.env.MYSQL_DATABASE || "clinic_db",
+  host: "127.0.0.1",
+  port: 3306,
+  user: "root",
+  password: "",
+  database: "clinic_db",
   enabled: true
 };
+function getConfigFilePath() {
+  if (process.env.CONFIG_PATH) return process.env.CONFIG_PATH;
+  const exeDir = import_path.default.dirname(process.execPath);
+  const possiblePaths = [
+    import_path.default.join(process.cwd(), "mysql-config.json"),
+    import_path.default.join(exeDir, "mysql-config.json"),
+    import_path.default.join(exeDir, "..", "mysql-config.json")
+  ];
+  for (const p of possiblePaths) {
+    if (import_fs.default.existsSync(p)) return p;
+  }
+  return import_path.default.join(process.cwd(), "mysql-config.json");
+}
 function readMySQLConfig() {
   try {
     const filePath = getConfigFilePath();
@@ -46849,7 +46855,7 @@ function readMySQLConfig() {
       return { ...DEFAULT_CONFIG, ...parsed };
     }
   } catch (e) {
-    console.error("Error reading mysql-config.json:", e);
+    console.warn("Error reading config file:", e);
   }
   return DEFAULT_CONFIG;
 }
@@ -46858,892 +46864,326 @@ function writeMySQLConfig(config) {
     const filePath = getConfigFilePath();
     import_fs.default.writeFileSync(filePath, JSON.stringify(config, null, 2), "utf-8");
   } catch (e) {
-    console.error("Error writing mysql-config.json:", e);
+    console.error("Error writing config file:", e);
   }
 }
-function ensureLocalMySQLServiceRunning() {
-  if (process.platform === "win32") {
-    try {
-      const cp = require("child_process");
-      cp.execSync("net start MySQL80 2>nul || net start MySQL 2>nul || net start MariaDB 2>nul || net start wampmysqld64 2>nul || ver >nul", { timeout: 3e3 });
-    } catch {
-    }
-    return;
+async function getRawConnection(config, withDatabase = true) {
+  const options = {
+    host: config.host || "127.0.0.1",
+    port: config.port || 3306,
+    user: config.user || "root",
+    password: config.password || "",
+    connectTimeout: 5e3
+  };
+  if (withDatabase && config.database) {
+    options.database = config.database;
   }
-  try {
-    const cp = require("child_process");
-    cp.execSync("/etc/init.d/mariadb start 2>/dev/null || service mysql start 2>/dev/null", { timeout: 3e3 });
-  } catch {
-  }
+  return await import_promise.default.createConnection(options);
 }
-async function getDBConnection(config, selectDb = true) {
-  const cfg = config || readMySQLConfig();
-  const host = cfg.host || DEFAULT_CONFIG.host;
-  const port = Number(cfg.port) || 3306;
-  const user = cfg.user || DEFAULT_CONFIG.user;
-  const password = cfg.password !== void 0 ? cfg.password : DEFAULT_CONFIG.password || "";
-  const database = selectDb ? cfg.database || DEFAULT_CONFIG.database : void 0;
-  try {
-    const conn = await import_promise.default.createConnection({
-      host,
-      port,
-      user,
-      password,
-      database,
-      connectTimeout: 7e3
-    });
-    return conn;
-  } catch (err) {
-    if ((host === "127.0.0.1" || host === "localhost") && (err.code === "ECONNREFUSED" || err.code === "PROTOCOL_CONNECTION_LOST")) {
-      ensureLocalMySQLServiceRunning();
-      await new Promise((r) => setTimeout(r, 600));
-      return await import_promise.default.createConnection({
-        host,
-        port,
-        user,
-        password,
-        database,
-        connectTimeout: 7e3
-      });
-    }
-    throw err;
-  }
+async function ensureTablesExist(conn) {
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS settings (
+      id VARCHAR(50) PRIMARY KEY,
+      data JSON NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS patients (
+      id VARCHAR(100) PRIMARY KEY,
+      first_name VARCHAR(100) NOT NULL,
+      last_name VARCHAR(100) NOT NULL,
+      phone VARCHAR(50),
+      national_id VARCHAR(50),
+      gender VARCHAR(20),
+      birth_date VARCHAR(50),
+      notes TEXT,
+      created_at VARCHAR(50),
+      raw_data JSON
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS services (
+      id VARCHAR(100) PRIMARY KEY,
+      title VARCHAR(150) NOT NULL,
+      price BIGINT NOT NULL,
+      category VARCHAR(100),
+      description TEXT,
+      raw_data JSON
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS operators (
+      id VARCHAR(100) PRIMARY KEY,
+      name VARCHAR(150) NOT NULL,
+      role VARCHAR(100),
+      percent INT DEFAULT 0,
+      phone VARCHAR(50),
+      raw_data JSON
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS admissions (
+      id VARCHAR(100) PRIMARY KEY,
+      patient_id VARCHAR(100),
+      patient_name VARCHAR(200),
+      admission_date VARCHAR(50),
+      total_amount BIGINT DEFAULT 0,
+      final_amount BIGINT DEFAULT 0,
+      discount_amount BIGINT DEFAULT 0,
+      payment_type VARCHAR(50),
+      operator_id VARCHAR(100),
+      operator_name VARCHAR(150),
+      raw_data JSON,
+      INDEX idx_patient (patient_id),
+      INDEX idx_date (admission_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS followups (
+      id VARCHAR(100) PRIMARY KEY,
+      patient_id VARCHAR(100),
+      patient_name VARCHAR(200),
+      patient_phone VARCHAR(50),
+      scheduled_date VARCHAR(50),
+      status VARCHAR(50),
+      notes TEXT,
+      raw_data JSON,
+      INDEX idx_scheduled (scheduled_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
 }
+app.get("/api/ping", (req, res) => {
+  res.json({ ok: true, server: "ClinicBackend", time: (/* @__PURE__ */ new Date()).toISOString() });
+});
 app.get("/api/db/config", (req, res) => {
-  const cfg = readMySQLConfig();
-  res.json({
-    config: {
-      ...cfg,
-      hasPassword: Boolean(cfg.password && cfg.password.length > 0)
-    },
-    defaultConfig: {
-      ...DEFAULT_CONFIG,
-      hasPassword: Boolean(DEFAULT_CONFIG.password && DEFAULT_CONFIG.password.length > 0)
-    }
-  });
+  const config = readMySQLConfig();
+  res.json({ success: true, config });
 });
 app.post("/api/db/config", (req, res) => {
-  const body = req.body;
-  const current = readMySQLConfig();
-  const updated = {
-    host: body.host?.trim() || current.host || DEFAULT_CONFIG.host,
-    port: Number(body.port) || current.port || DEFAULT_CONFIG.port,
-    user: body.user?.trim() || current.user || DEFAULT_CONFIG.user,
-    password: body.password !== void 0 ? body.password : current.password || DEFAULT_CONFIG.password,
-    database: body.database?.trim() || current.database || DEFAULT_CONFIG.database,
-    enabled: body.enabled !== void 0 ? Boolean(body.enabled) : true
-  };
-  writeMySQLConfig(updated);
-  res.json({ success: true, message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 MySQL \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F.", config: updated });
+  const newConfig = req.body;
+  if (!newConfig || !newConfig.host) {
+    res.status(400).json({ success: false, message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A" });
+    return;
+  }
+  writeMySQLConfig(newConfig);
+  res.json({ success: true, message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F", config: newConfig });
 });
 app.post("/api/db/reset-default", (req, res) => {
   writeMySQLConfig(DEFAULT_CONFIG);
-  res.json({
-    success: true,
-    message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0628\u0647 \u067E\u0627\u06CC\u06AF\u0627\u0647 \u062F\u0627\u062F\u0647 \u067E\u06CC\u0634\u200C\u0641\u0631\u0636 \u0627\u0635\u0644\u06CC \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0627\u0632\u06AF\u0631\u062F\u0627\u0646\u062F\u0647 \u0634\u062F.",
-    config: DEFAULT_CONFIG
-  });
+  res.json({ success: true, message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0628\u0647 \u062D\u0627\u0644\u062A \u067E\u06CC\u0634\u200C\u0641\u0631\u0636 (127.0.0.1:3306) \u0628\u0627\u0632\u0646\u0634\u0627\u0646\u06CC \u0634\u062F", config: DEFAULT_CONFIG });
 });
 app.post("/api/db/test", async (req, res) => {
-  const cfg = req.body;
-  const host = cfg.host?.trim() || DEFAULT_CONFIG.host;
-  const port = Number(cfg.port) || DEFAULT_CONFIG.port;
-  const user = cfg.user?.trim() || DEFAULT_CONFIG.user;
-  const password = cfg.password !== void 0 ? cfg.password : DEFAULT_CONFIG.password;
-  const database = cfg.database?.trim() || DEFAULT_CONFIG.database;
-  let conn = null;
+  const config = req.body && req.body.host ? req.body : readMySQLConfig();
+  let connWithoutDB = null;
+  let connWithDB = null;
   try {
-    try {
-      conn = await import_promise.default.createConnection({
-        host,
-        port,
-        user,
-        password,
-        connectTimeout: 5e3
-      });
-    } catch (firstErr) {
-      if ((host === "127.0.0.1" || host === "localhost") && (firstErr.code === "ECONNREFUSED" || firstErr.code === "PROTOCOL_CONNECTION_LOST")) {
-        ensureLocalMySQLServiceRunning();
-        await new Promise((r) => setTimeout(r, 600));
-        conn = await import_promise.default.createConnection({
-          host,
-          port,
-          user,
-          password,
-          connectTimeout: 5e3
-        });
-      } else {
-        throw firstErr;
-      }
-    }
-    const [rows] = await conn.query("SELECT VERSION() as version");
-    const version = rows[0]?.version || "MySQL";
-    const [dbs] = await conn.query("SHOW DATABASES LIKE ?", [database]);
-    const dbExists = Array.isArray(dbs) && dbs.length > 0;
+    connWithoutDB = await getRawConnection(config, false);
+    const [verRows] = await connWithoutDB.query("SELECT VERSION() as version");
+    const versionStr = verRows[0]?.version || "MySQL Server";
+    const [dbRows] = await connWithoutDB.query("SHOW DATABASES LIKE ?", [config.database]);
+    const databaseExists = dbRows.length > 0;
     let tablesCount = 0;
-    if (dbExists) {
-      await conn.query(`USE \`${database}\``);
-      const [tables] = await conn.query("SHOW TABLES");
-      tablesCount = Array.isArray(tables) ? tables.length : 0;
+    if (databaseExists) {
+      connWithDB = await getRawConnection(config, true);
+      const [tableRows] = await connWithDB.query("SHOW TABLES");
+      tablesCount = tableRows.length;
     }
     res.json({
       success: true,
-      message: `\u0627\u0631\u062A\u0628\u0627\u0637 \u0628\u0627 \u067E\u0627\u06CC\u06AF\u0627\u0647 \u062F\u0627\u062F\u0647 \u0628\u0631\u0642\u0631\u0627\u0631 \u0634\u062F (\u0646\u0633\u062E\u0647: ${version})${!dbExists ? ` - \u067E\u0627\u06CC\u06AF\u0627\u0647 \u062F\u0627\u062F\u0647 "${database}" \u0647\u0646\u0648\u0632 \u0633\u0627\u062E\u062A\u0647 \u0646\u0634\u062F\u0647 \u0627\u0633\u062A \u0648 \u0628\u0627 \u0632\u062F\u0646 \u062F\u06A9\u0645\u0647 \xAB\u0627\u06CC\u062C\u0627\u062F \u062C\u062F\u0627\u0648\u0644\xBB \u062E\u0648\u062F\u06A9\u0627\u0631 \u0633\u0627\u062E\u062A\u0647 \u0645\u06CC\u200C\u0634\u0648\u062F.` : ` - \u062A\u0639\u062F\u0627\u062F \u062C\u062F\u0627\u0648\u0644 \u0645\u0648\u062C\u0648\u062F: ${tablesCount}`}`,
-      version,
-      databaseExists: dbExists,
+      message: `\u0627\u062A\u0635\u0627\u0644 \u0628\u0647 MySQL \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0631\u0642\u0631\u0627\u0631 \u0634\u062F. (${versionStr})`,
+      version: versionStr,
+      databaseExists,
       tablesCount
     });
-  } catch (error) {
-    let userMsg = error.message;
-    if (error.code === "ECONNREFUSED") {
-      userMsg = `\u0627\u0645\u06A9\u0627\u0646 \u0627\u062A\u0635\u0627\u0644 \u0628\u0647 \u0633\u0631\u0648\u0631 MySQL \u0631\u0648\u06CC ${host}:${port} \u0648\u062C\u0648\u062F \u0646\u062F\u0627\u0631\u062F. \u0644\u0637\u0641\u0627\u064B \u0627\u0637\u0645\u06CC\u0646\u0627\u0646 \u062D\u0627\u0635\u0644 \u06A9\u0646\u06CC\u062F \u06A9\u0647 \u0633\u0631\u0648\u06CC\u0633 MySQL \u062F\u0631 \u062D\u0627\u0644 \u0627\u062C\u0631\u0627 \u0627\u0633\u062A \u0648 \u067E\u0648\u0631\u062A ${port} \u0628\u0627\u0632 \u0627\u0633\u062A.`;
-    } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
-      userMsg = `\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC (${user}) \u06CC\u0627 \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 MySQL \u0627\u0634\u062A\u0628\u0627\u0647 \u0627\u0633\u062A.`;
-    } else if (error.code === "ENOTFOUND") {
-      userMsg = `\u0622\u062F\u0631\u0633 \u0633\u0631\u0648\u0631 MySQL (${host}) \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A \u06CC\u0627 \u067E\u06CC\u062F\u0627 \u0646\u0634\u062F.`;
-    } else if (error.code === "ETIMEDOUT") {
-      userMsg = `\u0645\u0647\u0644\u062A \u0628\u0631\u0642\u0631\u0627\u0631\u06CC \u0627\u0631\u062A\u0628\u0627\u0637 \u0628\u0627 \u0633\u0631\u0648\u0631 MySQL (${host}:${port}) \u0628\u0647 \u067E\u0627\u06CC\u0627\u0646 \u0631\u0633\u06CC\u062F (Timeout). \u0644\u0637\u0641\u0627\u064B \u0641\u0627\u06CC\u0631\u0648\u0627\u0644 \u06CC\u0627 \u0648\u0636\u0639\u06CC\u062A \u0627\u062A\u0635\u0627\u0644 \u0633\u0631\u0648\u0631 \u0631\u0627 \u0628\u0631\u0631\u0633\u06CC \u0641\u0631\u0645\u0627\u06CC\u06CC\u062F.`;
-    }
+  } catch (e) {
     res.json({
       success: false,
-      message: userMsg,
-      code: error.code
+      message: `\u062E\u0637\u0627 \u062F\u0631 \u0627\u062A\u0635\u0627\u0644 \u0628\u0647 MySQL: ${e.message || "\u0633\u0631\u0648\u0631 \u067E\u0627\u0633\u062E\u06AF\u0648 \u0646\u06CC\u0633\u062A"}`
     });
   } finally {
-    if (conn) {
-      await conn.end().catch(() => {
-      });
-    }
+    if (connWithoutDB) await connWithoutDB.end().catch(() => {
+    });
+    if (connWithDB) await connWithDB.end().catch(() => {
+    });
   }
 });
 app.post("/api/db/init-tables", async (req, res) => {
-  const cfg = req.body;
-  const host = cfg.host?.trim() || DEFAULT_CONFIG.host;
-  const port = Number(cfg.port) || DEFAULT_CONFIG.port;
-  const user = cfg.user?.trim() || DEFAULT_CONFIG.user;
-  const password = cfg.password !== void 0 ? cfg.password : DEFAULT_CONFIG.password;
-  const database = cfg.database?.trim() || DEFAULT_CONFIG.database;
-  let conn = null;
+  const config = req.body && req.body.host ? req.body : readMySQLConfig();
+  let connWithoutDB = null;
+  let connWithDB = null;
   try {
-    try {
-      conn = await import_promise.default.createConnection({
-        host,
-        port,
-        user,
-        password,
-        connectTimeout: 8e3
-      });
-    } catch (firstErr) {
-      if ((host === "127.0.0.1" || host === "localhost") && (firstErr.code === "ECONNREFUSED" || firstErr.code === "PROTOCOL_CONNECTION_LOST")) {
-        ensureLocalMySQLServiceRunning();
-        await new Promise((r) => setTimeout(r, 600));
-        conn = await import_promise.default.createConnection({
-          host,
-          port,
-          user,
-          password,
-          connectTimeout: 8e3
-        });
-      } else {
-        throw firstErr;
-      }
-    }
-    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-    await conn.query(`USE \`${database}\``);
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS patients (
-        id VARCHAR(64) PRIMARY KEY,
-        national_id VARCHAR(32),
-        first_name VARCHAR(128) NOT NULL,
-        last_name VARCHAR(128) NOT NULL,
-        phone VARCHAR(32) NOT NULL,
-        age INT DEFAULT 0,
-        gender VARCHAR(16) DEFAULT 'female',
-        address TEXT,
-        job VARCHAR(128),
-        medical_history TEXT,
-        allergies TEXT,
-        notes TEXT,
-        created_at VARCHAR(32),
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_national_id (national_id),
-        INDEX idx_phone (phone)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS admissions (
-        id VARCHAR(64) PRIMARY KEY,
-        admission_number VARCHAR(64) NOT NULL,
-        patient_id VARCHAR(64) NOT NULL,
-        patient_name VARCHAR(128) NOT NULL,
-        patient_phone VARCHAR(32) NOT NULL,
-        patient_national_id VARCHAR(32),
-        service_id VARCHAR(64) NOT NULL,
-        service_name VARCHAR(128) NOT NULL,
-        service_category VARCHAR(64) NOT NULL,
-        operator_id VARCHAR(64),
-        operator_name VARCHAR(128),
-        date VARCHAR(32) NOT NULL,
-        timestamp BIGINT NOT NULL,
-        details_json LONGTEXT,
-        consumables_json LONGTEXT,
-        base_price BIGINT DEFAULT 0,
-        quantity INT DEFAULT 1,
-        discount BIGINT DEFAULT 0,
-        final_amount BIGINT DEFAULT 0,
-        paid_amount BIGINT DEFAULT 0,
-        debt_amount BIGINT DEFAULT 0,
-        payment_method VARCHAR(32) DEFAULT 'pos',
-        payment_methods_json TEXT,
-        payment_notes TEXT,
-        cheque_details_json LONGTEXT,
-        follow_up_date VARCHAR(32),
-        follow_up_reason TEXT,
-        status VARCHAR(32) DEFAULT 'completed',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_date (date),
-        INDEX idx_patient_id (patient_id),
-        INDEX idx_service_category (service_category)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS services (
-        id VARCHAR(64) PRIMARY KEY,
-        category VARCHAR(64) NOT NULL,
-        name VARCHAR(128) NOT NULL,
-        default_price BIGINT DEFAULT 0,
-        follow_up_days_default INT DEFAULT 30,
-        follow_up_note_default TEXT,
-        default_sessions INT DEFAULT 1,
-        active TINYINT(1) DEFAULT 1
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS operators (
-        id VARCHAR(64) PRIMARY KEY,
-        name VARCHAR(128) NOT NULL,
-        role VARCHAR(32) DEFAULT 'doctor',
-        commission_rate DECIMAL(5,2) DEFAULT 0,
-        phone VARCHAR(32),
-        active TINYINT(1) DEFAULT 1
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS follow_ups (
-        id VARCHAR(64) PRIMARY KEY,
-        patient_id VARCHAR(64) NOT NULL,
-        patient_name VARCHAR(128) NOT NULL,
-        patient_phone VARCHAR(32) NOT NULL,
-        admission_id VARCHAR(64),
-        service_name VARCHAR(128) NOT NULL,
-        operator_name VARCHAR(128),
-        previous_visit_date VARCHAR(32),
-        scheduled_date VARCHAR(32) NOT NULL,
-        status VARCHAR(32) DEFAULT 'pending',
-        reason TEXT,
-        notes TEXT,
-        INDEX idx_scheduled_date (scheduled_date),
-        INDEX idx_status (status)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS shareholders (
-        id VARCHAR(64) PRIMARY KEY,
-        name VARCHAR(128) NOT NULL,
-        share_percentage DECIMAL(5,2) DEFAULT 0
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS consumables (
-        name VARCHAR(128) PRIMARY KEY,
-        cost BIGINT DEFAULT 0
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS clinic_settings (
-        id INT PRIMARY KEY,
-        clinic_name VARCHAR(255),
-        doctor_name VARCHAR(255),
-        phone VARCHAR(64),
-        address TEXT,
-        receipt_footer TEXT,
-        admin_pin VARCHAR(32),
-        currency_unit VARCHAR(16) DEFAULT 'rial',
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS clinic_state_backup (
-        key_name VARCHAR(64) PRIMARY KEY,
-        payload LONGTEXT,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    writeMySQLConfig({
-      host,
-      port,
-      user,
-      password,
-      database,
-      enabled: true
-    });
+    connWithoutDB = await getRawConnection(config, false);
+    await connWithoutDB.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+    connWithDB = await getRawConnection(config, true);
+    await ensureTablesExist(connWithDB);
     res.json({
       success: true,
-      message: `\u067E\u0627\u06CC\u06AF\u0627\u0647 \u062F\u0627\u062F\u0647 "${database}" \u0648 \u062A\u0645\u0627\u0645\u06CC \u06F9 \u062C\u062F\u0648\u0644 \u0645\u0648\u0631\u062F\u0646\u06CC\u0627\u0632 \u0633\u0627\u0645\u0627\u0646\u0647 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062F\u0631 MySQL \u0627\u06CC\u062C\u0627\u062F \u0648 \u0622\u0645\u0627\u062F\u0647\u200C\u0633\u0627\u0632\u06CC \u0634\u062F\u0646\u062F.`
+      message: `\u067E\u0627\u06CC\u06AF\u0627\u0647 \u062F\u0627\u062F\u0647 '${config.database}' \u0648 \u062A\u0645\u0627\u0645\u06CC \u062C\u062F\u0627\u0648\u0644 \u0645\u0631\u0628\u0648\u0637\u0647 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0627\u06CC\u062C\u0627\u062F \u0648 \u0622\u0645\u0627\u062F\u0647\u200C\u0633\u0627\u0632\u06CC \u0634\u062F\u0646\u062F.`
     });
-  } catch (error) {
-    res.json({
+  } catch (e) {
+    res.status(500).json({
       success: false,
-      message: `\u062E\u0637\u0627 \u062F\u0631 \u0627\u06CC\u062C\u0627\u062F \u062C\u062F\u0627\u0648\u0644 MySQL: ${error.message}`
+      message: `\u062E\u0637\u0627 \u062F\u0631 \u0633\u0627\u062E\u062A \u062C\u062F\u0627\u0648\u0644 \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633: ${e.message}`
     });
   } finally {
-    if (conn) {
-      await conn.end().catch(() => {
-      });
-    }
+    if (connWithoutDB) await connWithoutDB.end().catch(() => {
+    });
+    if (connWithDB) await connWithDB.end().catch(() => {
+    });
   }
 });
 app.get("/api/db/load", async (req, res) => {
-  const cfg = readMySQLConfig();
-  if (!cfg.enabled) {
-    return res.status(400).json({ success: false, message: "\u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 MySQL \u062F\u0631 \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A." });
+  const config = readMySQLConfig();
+  if (!config.enabled) {
+    res.json({ success: false, message: "MySQL \u0627\u062A\u0635\u0627\u0644 \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A" });
+    return;
   }
   let conn = null;
   try {
-    conn = await getDBConnection(cfg, true);
-    const [patRows] = await conn.query("SELECT * FROM patients ORDER BY created_at DESC");
-    const patients = patRows.map((r) => ({
-      id: r.id,
-      nationalId: r.national_id || "",
-      firstName: r.first_name,
-      lastName: r.last_name,
-      phone: r.phone,
-      age: Number(r.age) || 0,
-      gender: r.gender || "female",
-      address: r.address || "",
-      job: r.job || "",
-      medicalHistory: r.medical_history || "",
-      allergies: r.allergies || "",
-      notes: r.notes || "",
-      createdAt: r.created_at || ""
-    }));
-    const [admRows] = await conn.query("SELECT * FROM admissions ORDER BY timestamp DESC");
-    const admissions = admRows.map((r) => {
-      let details = {};
-      let consumables2 = [];
-      let paymentMethods = void 0;
-      let chequeDetails = void 0;
-      try {
-        if (r.details_json) details = JSON.parse(r.details_json);
-      } catch {
-      }
-      try {
-        if (r.consumables_json) consumables2 = JSON.parse(r.consumables_json);
-      } catch {
-      }
-      try {
-        if (r.payment_methods_json) paymentMethods = JSON.parse(r.payment_methods_json);
-      } catch {
-      }
-      try {
-        if (r.cheque_details_json) chequeDetails = JSON.parse(r.cheque_details_json);
-      } catch {
-      }
-      return {
-        id: r.id,
-        admissionNumber: r.admission_number,
-        patientId: r.patient_id,
-        patientName: r.patient_name,
-        patientPhone: r.patient_phone,
-        patientNationalId: r.patient_national_id || "",
-        serviceId: r.service_id,
-        serviceName: r.service_name,
-        serviceCategory: r.service_category,
-        operatorId: r.operator_id || "",
-        operatorName: r.operator_name || "",
-        date: r.date,
-        timestamp: Number(r.timestamp) || Date.now(),
-        details,
-        consumables: consumables2,
-        basePrice: Number(r.base_price) || 0,
-        quantity: Number(r.quantity) || 1,
-        discount: Number(r.discount) || 0,
-        finalAmount: Number(r.final_amount) || 0,
-        paidAmount: Number(r.paid_amount) || 0,
-        debtAmount: Number(r.debt_amount) || 0,
-        paymentMethod: r.payment_method || "pos",
-        paymentMethods,
-        paymentNotes: r.payment_notes || void 0,
-        chequeDetails,
-        followUpDate: r.follow_up_date || void 0,
-        followUpReason: r.follow_up_reason || void 0,
-        status: r.status || "completed"
-      };
-    });
-    const [srvRows] = await conn.query("SELECT * FROM services");
-    const services = srvRows.map((r) => ({
-      id: r.id,
-      category: r.category,
-      name: r.name,
-      defaultPrice: Number(r.default_price) || 0,
-      followUpDaysDefault: Number(r.follow_up_days_default) || 30,
-      followUpNoteDefault: r.follow_up_note_default || "",
-      defaultSessions: Number(r.default_sessions) || 1,
-      active: Boolean(r.active)
-    }));
-    const [opRows] = await conn.query("SELECT * FROM operators");
-    const operators = opRows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      role: r.role || "doctor",
-      commissionRate: Number(r.commission_rate) || 0,
-      phone: r.phone || "",
-      active: Boolean(r.active)
-    }));
-    const [flwRows] = await conn.query("SELECT * FROM follow_ups");
-    const followUps = flwRows.map((r) => ({
-      id: r.id,
-      patientId: r.patient_id,
-      patientName: r.patient_name,
-      patientPhone: r.patient_phone,
-      admissionId: r.admission_id || void 0,
-      serviceName: r.service_name,
-      operatorName: r.operator_name || "",
-      previousVisitDate: r.previous_visit_date || "",
-      scheduledDate: r.scheduled_date,
-      status: r.status || "pending",
-      reason: r.reason || "",
-      notes: r.notes || ""
-    }));
-    const [shRows] = await conn.query("SELECT * FROM shareholders");
-    const shareholders = shRows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      sharePercentage: Number(r.share_percentage) || 0
-    }));
-    const [conRows] = await conn.query("SELECT * FROM consumables");
-    const consumables = conRows.map((r) => ({
-      name: r.name,
-      cost: Number(r.cost) || 0
-    }));
-    const [settRows] = await conn.query("SELECT * FROM clinic_settings WHERE id = 1");
+    conn = await getRawConnection(config, true);
+    await ensureTablesExist(conn);
+    const [patientsRows] = await conn.query("SELECT raw_data FROM patients");
+    const patients = patientsRows.map((r) => typeof r.raw_data === "string" ? JSON.parse(r.raw_data) : r.raw_data);
+    const [servicesRows] = await conn.query("SELECT raw_data FROM services");
+    const services = servicesRows.map((r) => typeof r.raw_data === "string" ? JSON.parse(r.raw_data) : r.raw_data);
+    const [operatorsRows] = await conn.query("SELECT raw_data FROM operators");
+    const operators = operatorsRows.map((r) => typeof r.raw_data === "string" ? JSON.parse(r.raw_data) : r.raw_data);
+    const [admissionsRows] = await conn.query("SELECT raw_data FROM admissions ORDER BY id DESC");
+    const admissions = admissionsRows.map((r) => typeof r.raw_data === "string" ? JSON.parse(r.raw_data) : r.raw_data);
+    const [followupsRows] = await conn.query("SELECT raw_data FROM followups");
+    const followUps = followupsRows.map((r) => typeof r.raw_data === "string" ? JSON.parse(r.raw_data) : r.raw_data);
+    const [settingsRows] = await conn.query('SELECT data FROM settings WHERE id = "main_settings"');
     let settings = null;
-    if (settRows.length > 0) {
-      const s = settRows[0];
-      settings = {
-        clinicName: s.clinic_name,
-        doctorName: s.doctor_name,
-        phone: s.phone,
-        address: s.address,
-        receiptFooter: s.receipt_footer,
-        adminPin: s.admin_pin || "1234",
-        currencyUnit: s.currency_unit || "rial",
-        mysqlConfig: cfg
-      };
+    if (settingsRows.length > 0) {
+      settings = typeof settingsRows[0].data === "string" ? JSON.parse(settingsRows[0].data) : settingsRows[0].data;
     }
     res.json({
       success: true,
       data: {
         patients,
-        admissions,
-        services: services.length > 0 ? services : void 0,
+        services,
         operators,
+        admissions,
         followUps,
-        shareholders,
-        consumables: consumables.length > 0 ? consumables : void 0,
-        settings: settings || void 0
+        settings
       }
     });
-  } catch (error) {
-    res.json({
-      success: false,
-      message: `\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0627\u0632 \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 MySQL: ${error.message}`
-    });
+  } catch (e) {
+    res.json({ success: false, message: `\u062E\u0637\u0627 \u062F\u0631 \u0644\u0648\u062F \u062F\u0627\u062F\u0647\u200C\u0647\u0627 \u0627\u0632 MySQL: ${e.message}` });
   } finally {
-    if (conn) {
-      await conn.end().catch(() => {
-      });
-    }
+    if (conn) await conn.end().catch(() => {
+    });
   }
 });
 app.post("/api/db/sync", async (req, res) => {
-  const cfg = readMySQLConfig();
-  if (!cfg.enabled) {
-    return res.status(400).json({ success: false, message: "\u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 MySQL \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A." });
+  const config = readMySQLConfig();
+  if (!config.enabled) {
+    res.json({ success: false, message: "MySQL \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A" });
+    return;
   }
-  const {
-    patients = [],
-    admissions = [],
-    services = [],
-    operators = [],
-    followUps = [],
-    shareholders = [],
-    consumables = [],
-    settings
-  } = req.body;
+  const { patients, services, operators, admissions, followUps, settings } = req.body || {};
   let conn = null;
   try {
-    conn = await getDBConnection(cfg, true);
-    await conn.query(
-      `INSERT INTO clinic_state_backup (key_name, payload) VALUES ('full_clinic_state', ?)
-       ON DUPLICATE KEY UPDATE payload = VALUES(payload)`,
-      [JSON.stringify(req.body)]
-    );
+    conn = await getRawConnection(config, true);
+    await ensureTablesExist(conn);
     if (Array.isArray(patients)) {
       for (const p of patients) {
+        if (!p.id) continue;
         await conn.query(
-          `INSERT INTO patients (
-            id, national_id, first_name, last_name, phone, age, gender, address, job, medical_history, allergies, notes, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            national_id = VALUES(national_id),
-            first_name = VALUES(first_name),
-            last_name = VALUES(last_name),
-            phone = VALUES(phone),
-            age = VALUES(age),
-            gender = VALUES(gender),
-            address = VALUES(address),
-            job = VALUES(job),
-            medical_history = VALUES(medical_history),
-            allergies = VALUES(allergies),
-            notes = VALUES(notes)`,
+          `REPLACE INTO patients (id, first_name, last_name, phone, national_id, gender, birth_date, notes, created_at, raw_data)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             p.id,
+            p.firstName || "",
+            p.lastName || "",
+            p.phone || "",
             p.nationalId || "",
-            p.firstName,
-            p.lastName,
-            p.phone,
-            p.age || 0,
-            p.gender || "female",
-            p.address || "",
-            p.job || "",
-            p.medicalHistory || "",
-            p.allergies || "",
+            p.gender || "",
+            p.birthDate || "",
             p.notes || "",
-            p.createdAt || ""
-          ]
-        );
-      }
-    }
-    if (Array.isArray(admissions)) {
-      for (const a of admissions) {
-        await conn.query(
-          `INSERT INTO admissions (
-            id, admission_number, patient_id, patient_name, patient_phone, patient_national_id,
-            service_id, service_name, service_category, operator_id, operator_name, date, timestamp,
-            details_json, consumables_json, base_price, quantity, discount, final_amount, paid_amount,
-            debt_amount, payment_method, payment_methods_json, payment_notes, cheque_details_json,
-            follow_up_date, follow_up_reason, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            paid_amount = VALUES(paid_amount),
-            debt_amount = VALUES(debt_amount),
-            status = VALUES(status),
-            details_json = VALUES(details_json),
-            payment_methods_json = VALUES(payment_methods_json),
-            payment_notes = VALUES(payment_notes),
-            cheque_details_json = VALUES(cheque_details_json)`,
-          [
-            a.id,
-            a.admissionNumber,
-            a.patientId,
-            a.patientName,
-            a.patientPhone,
-            a.patientNationalId || "",
-            a.serviceId,
-            a.serviceName,
-            a.serviceCategory,
-            a.operatorId || "",
-            a.operatorName || "",
-            a.date,
-            a.timestamp || Date.now(),
-            JSON.stringify(a.details || {}),
-            JSON.stringify(a.consumables || []),
-            a.basePrice || 0,
-            a.quantity || 1,
-            a.discount || 0,
-            a.finalAmount || 0,
-            a.paidAmount || 0,
-            a.debtAmount || 0,
-            a.paymentMethod || "pos",
-            a.paymentMethods ? JSON.stringify(a.paymentMethods) : null,
-            a.paymentNotes || null,
-            a.chequeDetails ? JSON.stringify(a.chequeDetails) : null,
-            a.followUpDate || null,
-            a.followUpReason || null,
-            a.status || "completed"
-          ]
-        );
-      }
-    }
-    if (Array.isArray(followUps)) {
-      for (const f of followUps) {
-        await conn.query(
-          `INSERT INTO follow_ups (
-            id, patient_id, patient_name, patient_phone, admission_id, service_name, operator_name,
-            previous_visit_date, scheduled_date, status, reason, notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            scheduled_date = VALUES(scheduled_date),
-            status = VALUES(status),
-            notes = VALUES(notes)`,
-          [
-            f.id,
-            f.patientId,
-            f.patientName,
-            f.patientPhone,
-            f.admissionId || null,
-            f.serviceName,
-            f.operatorName || "",
-            f.previousVisitDate || "",
-            f.scheduledDate,
-            f.status || "pending",
-            f.reason || "",
-            f.notes || ""
+            p.createdAt || "",
+            JSON.stringify(p)
           ]
         );
       }
     }
     if (Array.isArray(services)) {
       for (const s of services) {
+        if (!s.id) continue;
         await conn.query(
-          `INSERT INTO services (
-            id, category, name, default_price, follow_up_days_default, follow_up_note_default, default_sessions, active
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            category = VALUES(category),
-            name = VALUES(name),
-            default_price = VALUES(default_price),
-            follow_up_days_default = VALUES(follow_up_days_default),
-            follow_up_note_default = VALUES(follow_up_note_default),
-            default_sessions = VALUES(default_sessions),
-            active = VALUES(active)`,
-          [
-            s.id,
-            s.category || "other",
-            s.name,
-            s.defaultPrice || 0,
-            s.followUpDaysDefault || 30,
-            s.followUpNoteDefault || "",
-            s.defaultSessions || 1,
-            s.active !== false ? 1 : 0
-          ]
+          `REPLACE INTO services (id, title, price, category, description, raw_data)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [s.id, s.title || "", s.price || 0, s.category || "", s.description || "", JSON.stringify(s)]
         );
       }
     }
     if (Array.isArray(operators)) {
-      if (operators.length === 0) {
-        await conn.query("DELETE FROM operators");
-      } else {
-        const opIds = operators.map((o) => o.id);
-        const placeholders = opIds.map(() => "?").join(",");
-        await conn.query(`DELETE FROM operators WHERE id NOT IN (${placeholders})`, opIds);
-        for (const op of operators) {
-          await conn.query(
-            `INSERT INTO operators (
-              id, name, role, commission_rate, phone, active
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-              name = VALUES(name),
-              role = VALUES(role),
-              commission_rate = VALUES(commission_rate),
-              phone = VALUES(phone),
-              active = VALUES(active)`,
-            [
-              op.id,
-              op.name,
-              op.role || "doctor",
-              op.commissionRate || 0,
-              op.phone || "",
-              op.active !== false ? 1 : 0
-            ]
-          );
-        }
-      }
-    }
-    if (Array.isArray(consumables)) {
-      for (const c of consumables) {
+      for (const o of operators) {
+        if (!o.id) continue;
         await conn.query(
-          `INSERT INTO consumables (
-            name, cost
-          ) VALUES (?, ?)
-          ON DUPLICATE KEY UPDATE
-            cost = VALUES(cost)`,
-          [c.name, c.cost || 0]
+          `REPLACE INTO operators (id, name, role, percent, phone, raw_data)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [o.id, o.name || "", o.role || "", o.percent || 0, o.phone || "", JSON.stringify(o)]
         );
       }
     }
-    if (Array.isArray(shareholders)) {
-      if (shareholders.length === 0) {
-        await conn.query("DELETE FROM shareholders");
-      } else {
-        const shIds = shareholders.map((s) => s.id);
-        const placeholders = shIds.map(() => "?").join(",");
-        await conn.query(`DELETE FROM shareholders WHERE id NOT IN (${placeholders})`, shIds);
-        for (const sh of shareholders) {
-          await conn.query(
-            `INSERT INTO shareholders (
-              id, name, share_percentage
-            ) VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-              name = VALUES(name),
-              share_percentage = VALUES(share_percentage)`,
-            [sh.id, sh.name, sh.sharePercentage || 0]
-          );
-        }
+    if (Array.isArray(admissions)) {
+      for (const a of admissions) {
+        if (!a.id) continue;
+        await conn.query(
+          `REPLACE INTO admissions (id, patient_id, patient_name, admission_date, total_amount, final_amount, discount_amount, payment_type, operator_id, operator_name, raw_data)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            a.id,
+            a.patientId || "",
+            a.patientName || "",
+            a.admissionDate || "",
+            a.totalAmount || 0,
+            a.finalAmount || 0,
+            a.discountAmount || 0,
+            a.paymentType || "",
+            a.operatorId || "",
+            a.operatorName || "",
+            JSON.stringify(a)
+          ]
+        );
+      }
+    }
+    if (Array.isArray(followUps)) {
+      for (const f of followUps) {
+        if (!f.id) continue;
+        await conn.query(
+          `REPLACE INTO followups (id, patient_id, patient_name, patient_phone, scheduled_date, status, notes, raw_data)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            f.id,
+            f.patientId || "",
+            f.patientName || "",
+            f.patientPhone || "",
+            f.scheduledDate || "",
+            f.status || "",
+            f.notes || "",
+            JSON.stringify(f)
+          ]
+        );
       }
     }
     if (settings) {
       await conn.query(
-        `INSERT INTO clinic_settings (
-          id, clinic_name, doctor_name, phone, address, receipt_footer, admin_pin, currency_unit
-        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          clinic_name = VALUES(clinic_name),
-          doctor_name = VALUES(doctor_name),
-          phone = VALUES(phone),
-          address = VALUES(address),
-          receipt_footer = VALUES(receipt_footer),
-          admin_pin = VALUES(admin_pin),
-          currency_unit = VALUES(currency_unit)`,
-        [
-          settings.clinicName || "",
-          settings.doctorName || "",
-          settings.phone || "",
-          settings.address || "",
-          settings.receiptFooter || "",
-          settings.adminPin || "1234",
-          settings.currencyUnit || "rial"
-        ]
+        `REPLACE INTO settings (id, data) VALUES ('main_settings', ?)`,
+        [JSON.stringify(settings)]
       );
     }
     res.json({
       success: true,
-      message: "\u0647\u0645\u06AF\u0627\u0645\u200C\u0633\u0627\u0632\u06CC \u0648 \u0630\u062E\u06CC\u0631\u0647\u200C\u0633\u0627\u0632\u06CC \u062F\u0627\u062F\u0647\u200C\u0647\u0627 \u062F\u0631 \u067E\u0627\u06CC\u06AF\u0627\u0647 \u062F\u0627\u062F\u0647 MySQL \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0627\u0646\u062C\u0627\u0645 \u0634\u062F.",
-      stats: {
-        patients: patients.length,
-        admissions: admissions.length,
-        services: services.length,
-        operators: operators.length,
-        consumables: consumables.length,
-        shareholders: shareholders.length,
-        followUps: followUps.length
-      }
+      message: "\u062A\u0645\u0627\u0645\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062F\u0631 \u062C\u062F\u0648\u0644\u200C\u0647\u0627\u06CC \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 MySQL \u062B\u0628\u062A \u0648 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F\u0646\u062F."
     });
-  } catch (error) {
-    res.json({
-      success: false,
-      message: `\u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647\u200C\u0633\u0627\u0632\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u062F\u0631 \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 MySQL: ${error.message}`
-    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: `\u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647\u200C\u0633\u0627\u0632\u06CC \u062F\u0627\u062F\u0647\u200C\u0647\u0627 \u062F\u0631 MySQL: ${e.message}` });
   } finally {
-    if (conn) {
-      await conn.end().catch(() => {
-      });
-    }
-  }
-});
-app.get("/api/db/backup", async (req, res) => {
-  const cfg = readMySQLConfig();
-  if (!cfg.enabled) {
-    return res.json({ success: false, message: "\u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 MySQL \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A." });
-  }
-  let conn = null;
-  try {
-    conn = await getDBConnection(cfg, true);
-    const [patients] = await conn.query("SELECT * FROM patients");
-    const [admissions] = await conn.query("SELECT * FROM admissions");
-    const [services] = await conn.query("SELECT * FROM services");
-    const [operators] = await conn.query("SELECT * FROM operators");
-    const [followUps] = await conn.query("SELECT * FROM follow_ups");
-    const [consumables] = await conn.query("SELECT * FROM consumables");
-    const [shareholders] = await conn.query("SELECT * FROM shareholders");
-    const [settings] = await conn.query("SELECT * FROM clinic_settings WHERE id = 1");
-    const backupPayload = {
-      version: "1.0",
-      exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      timestamp: Date.now(),
-      database: cfg.database,
-      tables: {
-        patients,
-        admissions,
-        services,
-        operators,
-        followUps,
-        consumables,
-        shareholders,
-        settings: settings[0] || null
-      }
-    };
-    let sqlDump = `-- Clinic Database Backup Dump
--- Generated at: ${(/* @__PURE__ */ new Date()).toISOString()}
--- Database: ${cfg.database}
-
-`;
-    sqlDump += `/*!40101 SET NAMES utf8mb4 */;
-
-`;
-    if (patients.length > 0) {
-      sqlDump += `-- Patients (${patients.length} records)
-`;
-      for (const p of patients) {
-        sqlDump += `REPLACE INTO patients (id, national_id, first_name, last_name, phone, age, gender, address, job, medical_history, allergies, notes) VALUES (${import_promise.default.escape(p.id)}, ${import_promise.default.escape(p.national_id)}, ${import_promise.default.escape(p.first_name)}, ${import_promise.default.escape(p.last_name)}, ${import_promise.default.escape(p.phone)}, ${import_promise.default.escape(p.age)}, ${import_promise.default.escape(p.gender)}, ${import_promise.default.escape(p.address)}, ${import_promise.default.escape(p.job)}, ${import_promise.default.escape(p.medical_history)}, ${import_promise.default.escape(p.allergies)}, ${import_promise.default.escape(p.notes)});
-`;
-      }
-      sqlDump += "\n";
-    }
-    if (admissions.length > 0) {
-      sqlDump += `-- Admissions (${admissions.length} records)
-`;
-      for (const a of admissions) {
-        sqlDump += `REPLACE INTO admissions (id, admission_number, patient_id, patient_name, patient_phone, patient_national_id, service_id, service_name, service_category, operator_id, operator_name, date, timestamp, details_json, consumables_json, base_price, quantity, discount, final_amount, paid_amount, debt_amount, payment_method, status) VALUES (${import_promise.default.escape(a.id)}, ${import_promise.default.escape(a.admission_number)}, ${import_promise.default.escape(a.patient_id)}, ${import_promise.default.escape(a.patient_name)}, ${import_promise.default.escape(a.patient_phone)}, ${import_promise.default.escape(a.patient_national_id)}, ${import_promise.default.escape(a.service_id)}, ${import_promise.default.escape(a.service_name)}, ${import_promise.default.escape(a.service_category)}, ${import_promise.default.escape(a.operator_id)}, ${import_promise.default.escape(a.operator_name)}, ${import_promise.default.escape(a.date)}, ${import_promise.default.escape(a.timestamp)}, ${import_promise.default.escape(a.details_json)}, ${import_promise.default.escape(a.consumables_json)}, ${import_promise.default.escape(a.base_price)}, ${import_promise.default.escape(a.quantity)}, ${import_promise.default.escape(a.discount)}, ${import_promise.default.escape(a.final_amount)}, ${import_promise.default.escape(a.paid_amount)}, ${import_promise.default.escape(a.debt_amount)}, ${import_promise.default.escape(a.payment_method)}, ${import_promise.default.escape(a.status)});
-`;
-      }
-      sqlDump += "\n";
-    }
-    res.json({
-      success: true,
-      backup: backupPayload,
-      sqlDump,
-      message: "\u0646\u0633\u062E\u0647 \u067E\u0634\u062A\u06CC\u0628\u0627\u0646 \u067E\u0627\u06CC\u06AF\u0627\u0647 \u062F\u0627\u062F\u0647 MySQL \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0627\u06CC\u062C\u0627\u062F \u0634\u062F."
+    if (conn) await conn.end().catch(() => {
     });
-  } catch (error) {
-    res.json({
-      success: false,
-      message: `\u062E\u0637\u0627 \u062F\u0631 \u062A\u0647\u06CC\u0647 \u0646\u0633\u062E\u0647 \u067E\u0634\u062A\u06CC\u0628\u0627\u0646 MySQL: ${error.message}`
-    });
-  } finally {
-    if (conn) {
-      await conn.end().catch(() => {
-      });
-    }
-  }
-});
-app.post("/api/db/clear", async (req, res) => {
-  const cfg = readMySQLConfig();
-  if (!cfg.enabled) {
-    return res.status(400).json({ success: false, message: "\u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 MySQL \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A." });
-  }
-  let conn = null;
-  try {
-    conn = await getDBConnection(cfg, true);
-    await conn.query("DELETE FROM admissions");
-    await conn.query("DELETE FROM patients");
-    await conn.query("DELETE FROM follow_ups");
-    await conn.query("DELETE FROM clinic_state_backup");
-    res.json({
-      success: true,
-      message: "\u062A\u0645\u0627\u0645\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0628\u06CC\u0645\u0627\u0631\u0627\u0646\u060C \u067E\u0630\u06CC\u0631\u0634\u200C\u0647\u0627 \u0648 \u067E\u06CC\u06AF\u06CC\u0631\u06CC\u200C\u0647\u0627 \u0627\u0632 \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 MySQL \u067E\u0627\u06A9\u0633\u0627\u0632\u06CC \u0634\u062F\u0646\u062F."
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: `\u062E\u0637\u0627 \u062F\u0631 \u067E\u0627\u06A9\u0633\u0627\u0632\u06CC \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633: ${error.message}`
-    });
-  } finally {
-    if (conn) {
-      await conn.end().catch(() => {
-      });
-    }
   }
 });
 async function setupApp() {
@@ -47759,27 +47199,16 @@ async function setupApp() {
     try {
       const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
-        server: {
-          middlewareMode: true,
-          hmr: false
-        },
+        server: { middlewareMode: true },
         appType: "spa"
       });
       app.use(vite.middlewares);
-    } catch (e) {
-      console.warn("Vite development server not loaded:", e);
+    } catch (err) {
+      console.warn("Vite development server middleware skipped:", err);
     }
   }
-  ensureLocalMySQLServiceRunning();
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Clinic Management App running at http://localhost:${PORT}`);
-  });
-  server.on("error", (err) => {
-    if (err.code === "EADDRINUSE") {
-      console.log(`Port ${PORT} is already in use by another running instance. Reusing existing instance.`);
-    } else {
-      console.error("Server error:", err);
-    }
+  app.listen(PORT, () => {
+    console.log(`[ClinicBackend] Express + MySQL Server running on http://127.0.0.1:${PORT}`);
   });
 }
 setupApp();
