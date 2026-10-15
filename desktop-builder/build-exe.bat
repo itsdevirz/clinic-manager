@@ -4,7 +4,7 @@ chcp 65001 >nul
 title ساخت خروجی EXE برنامه مطب (Tauri)
 cls
 echo ======================================================================
-echo    سامانه مدیریت کلینیک و مطب زیبایی - ساخت فایل اجرایی دسکتاپ (EXE)
+echo    سامانه مدیریت کلینیک و مطب زیبایی - ساخت فایل اجرایی دسکتاپ (EXE فرانت‌اند)
 echo ======================================================================
 echo.
 
@@ -136,14 +136,6 @@ echo.
 echo 2) فایل اجرایی بدون نیاز به نصب (Portable EXE):
 echo    src-tauri\target\release\ClinicManagement.exe
 echo.
-
-:: کپی ملزومات بکند در کنار فایل اجرایی تائوری
-if exist "%~dp0..\dist-server\backend-server.exe" copy /y "%~dp0..\dist-server\backend-server.exe" "%~dp0..\src-tauri\target\release\" >nul 2>nul
-if exist "%~dp0..\dist-server\server.cjs" (
-    if not exist "%~dp0..\src-tauri\target\release\dist-server" mkdir "%~dp0..\src-tauri\target\release\dist-server" >nul 2>nul
-    copy /y "%~dp0..\dist-server\server.cjs" "%~dp0..\src-tauri\target\release\dist-server\" >nul 2>nul
-)
-if exist "%~dp0..\mysql-config.json" copy /y "%~dp0..\mysql-config.json" "%~dp0..\src-tauri\target\release\" >nul 2>nul
 
 :: باز کردن پوشه فایل‌های خروجی در ویندوز اکسپلورر
 if exist "%~dp0..\src-tauri\target\release\bundle\nsis" (
