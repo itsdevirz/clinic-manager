@@ -125,7 +125,7 @@ EOF
 # ------------------------------------------------------------------------------
 echo -e "${YELLOW}[5/5] ساخت نهایی فایل ویندوزی EXE با Tauri (تارگت x86_64-pc-windows-gnu)...${NC}"
 npm install --legacy-peer-deps
-npm run build
+npm run build:all
 npm run tauri:build:win
 
 # ------------------------------------------------------------------------------

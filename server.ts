@@ -1,7 +1,12 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
+import dns from 'dns';
 import { MongoClient, Db } from 'mongodb';
+
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {}
 
 process.env.DISABLE_HMR = 'true';
 
@@ -51,6 +56,7 @@ function getConfigFilePath(): string {
     path.join(process.cwd(), 'mongo-config.json'),
     path.join(exeDir, 'mongo-config.json'),
     path.join(exeDir, '..', 'mongo-config.json'),
+    path.join(exeDir, 'resources', 'mongo-config.json'),
   ];
 
   for (const p of possiblePaths) {
@@ -66,7 +72,7 @@ function readMongoConfig(): MongoConfig {
     if (fs.existsSync(filePath)) {
       const raw = fs.readFileSync(filePath, 'utf-8');
       const parsed = JSON.parse(raw);
-      return { ...DEFAULT_CONFIG, ...parsed };
+      return { ...DEFAULT_CONFIG, ...parsed, enabled: true, database: parsed.database || 'clinic' };
     }
   } catch (e) {
     console.warn('Error reading config file:', e);
@@ -77,7 +83,7 @@ function readMongoConfig(): MongoConfig {
 function writeMongoConfig(config: MongoConfig): void {
   try {
     const filePath = getConfigFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(config, null, 2), 'utf-8');
+    fs.writeFileSync(filePath, JSON.stringify({ ...config, enabled: true, database: config.database || 'clinic' }, null, 2), 'utf-8');
   } catch (e) {
     console.error('Error writing config file:', e);
   }
@@ -102,14 +108,41 @@ function buildMongoURI(config: MongoConfig): string {
 
 async function getMongoClient(config: MongoConfig): Promise<{ client: MongoClient; db: Db }> {
   const uri = buildMongoURI(config);
-  const client = new MongoClient(uri, {
-    connectTimeoutMS: 5000,
-    serverSelectionTimeoutMS: 5000,
-  });
-  await client.connect();
   const dbName = config.database || 'clinic';
-  const db = client.db(dbName);
-  return { client, db };
+
+  // Attempt 1: Configured URI
+  try {
+    const client = new MongoClient(uri, {
+      connectTimeoutMS: 4000,
+      serverSelectionTimeoutMS: 4000,
+      family: 4,
+    });
+    await client.connect();
+    return { client, db: client.db(dbName) };
+  } catch (err1) {
+    // Attempt 2: Swap 127.0.0.1 <-> localhost for IPv4/IPv6 socket binding flexibility
+    let fallbackUri = uri;
+    if (uri.includes('127.0.0.1')) {
+      fallbackUri = uri.replace('127.0.0.1', 'localhost');
+    } else if (uri.includes('localhost')) {
+      fallbackUri = uri.replace('localhost', '127.0.0.1');
+    }
+
+    if (fallbackUri !== uri) {
+      try {
+        const client = new MongoClient(fallbackUri, {
+          connectTimeoutMS: 4000,
+          serverSelectionTimeoutMS: 4000,
+          family: 4,
+        });
+        await client.connect();
+        return { client, db: client.db(dbName) };
+      } catch (err2) {
+        throw err1;
+      }
+    }
+    throw err1;
+  }
 }
 
 async function ensureCollectionsExist(db: Db) {
@@ -119,17 +152,17 @@ async function ensureCollectionsExist(db: Db) {
 
   for (const colName of collections) {
     if (!existingNames.includes(colName)) {
-      await db.createCollection(colName);
+      await db.createCollection(colName).catch(() => {});
     }
   }
 
-  // Create useful indexes
-  await db.collection('patients').createIndex({ id: 1 }, { unique: true });
-  await db.collection('services').createIndex({ id: 1 }, { unique: true });
-  await db.collection('operators').createIndex({ id: 1 }, { unique: true });
-  await db.collection('admissions').createIndex({ id: 1 }, { unique: true });
-  await db.collection('followups').createIndex({ id: 1 }, { unique: true });
-  await db.collection('settings').createIndex({ id: 1 }, { unique: true });
+  // Create unique indexes on id
+  await db.collection('patients').createIndex({ id: 1 }, { unique: true }).catch(() => {});
+  await db.collection('services').createIndex({ id: 1 }, { unique: true }).catch(() => {});
+  await db.collection('operators').createIndex({ id: 1 }, { unique: true }).catch(() => {});
+  await db.collection('admissions').createIndex({ id: 1 }, { unique: true }).catch(() => {});
+  await db.collection('followups').createIndex({ id: 1 }, { unique: true }).catch(() => {});
+  await db.collection('settings').createIndex({ id: 1 }, { unique: true }).catch(() => {});
 }
 
 // API Routes
@@ -143,11 +176,7 @@ app.get('/api/db/config', (req: Request, res: Response) => {
 });
 
 app.post('/api/db/config', (req: Request, res: Response) => {
-  const newConfig = req.body as MongoConfig;
-  if (!newConfig || (!newConfig.host && !newConfig.uri)) {
-    res.status(400).json({ success: false, message: 'تنظیمات نامعتبر است' });
-    return;
-  }
+  const newConfig = { ...(req.body || {}), enabled: true, database: req.body?.database || 'clinic' } as MongoConfig;
   writeMongoConfig(newConfig);
   res.json({ success: true, message: 'تنظیمات MongoDB با موفقیت ذخیره شد', config: newConfig });
 });
@@ -165,7 +194,7 @@ app.post('/api/db/test', async (req: Request, res: Response) => {
     const mongo = await getMongoClient(config);
     client = mongo.client;
     const adminDb = client.db().admin();
-    const pingRes = await adminDb.ping();
+    await adminDb.ping();
 
     const collections = await mongo.db.listCollections().toArray();
     const versionInfo = await adminDb.serverStatus().catch(() => ({ version: 'MongoDB Server' }));
@@ -180,7 +209,7 @@ app.post('/api/db/test', async (req: Request, res: Response) => {
   } catch (e: any) {
     res.json({
       success: false,
-      message: `خطا در اتصال به MongoDB: ${e.message || 'سرور پاسخگو نیست'}`,
+      message: `خطا در اتصال به MongoDB: ${e.message || 'سرویس MongoDB روی سیستم یافت نشد.'}`,
     });
   } finally {
     if (client) {
@@ -200,7 +229,7 @@ app.post('/api/db/init-tables', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: `پایگاه داده '${config.database || 'clinic'}' و مجموعه‌های (Collections) مربوطه با موفقیت آماده‌سازی شدند.`,
+      message: `پایگاه داده '${config.database || 'clinic'}' و مجموعه‌های مربوطه با موفقیت آماده‌سازی شدند.`,
     });
   } catch (e: any) {
     res.status(500).json({
@@ -216,12 +245,8 @@ app.post('/api/db/init-tables', async (req: Request, res: Response) => {
 
 app.get('/api/db/load', async (req: Request, res: Response) => {
   const config = readMongoConfig();
-  if (!config.enabled) {
-    res.json({ success: false, message: 'اتصال به MongoDB غیرفعال است' });
-    return;
-  }
-
   let client: MongoClient | null = null;
+
   try {
     const mongo = await getMongoClient(config);
     client = mongo.client;
@@ -273,11 +298,6 @@ app.get('/api/db/load', async (req: Request, res: Response) => {
 
 app.post('/api/db/sync', async (req: Request, res: Response) => {
   const config = readMongoConfig();
-  if (!config.enabled) {
-    res.json({ success: false, message: 'اتصال به MongoDB غیرفعال است' });
-    return;
-  }
-
   const { patients, services, operators, admissions, followUps, settings } = req.body || {};
   let client: MongoClient | null = null;
 
@@ -331,7 +351,7 @@ app.post('/api/db/sync', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'تمامی اطلاعات با موفقیت در کلوکشن‌های MongoDB ثبت و همگام‌سازی شدند.',
+      message: 'تمامی اطلاعات با موفقیت در MongoDB همگام‌سازی شدند.',
     });
   } catch (e: any) {
     res.status(500).json({ success: false, message: `خطا در ذخیره‌سازی داده‌ها در MongoDB: ${e.message}` });
@@ -351,7 +371,7 @@ app.post('/api/db/clear', async (req: Request, res: Response) => {
     await mongo.db.collection('patients').deleteMany({});
     await mongo.db.collection('admissions').deleteMany({});
     await mongo.db.collection('followups').deleteMany({});
-    res.json({ success: true, message: 'مجموعه‌های اطلاعاتی در MongoDB با موفقیت پاکسازی شدند.' });
+    res.json({ success: true, message: 'مجموعه‌های اطلاعاتی در MongoDB پاکسازی شدند.' });
   } catch (e: any) {
     res.json({ success: false, message: e.message });
   } finally {
@@ -379,7 +399,7 @@ async function setupApp() {
       });
       app.use(vite.middlewares);
     } catch (err) {
-      console.warn('Vite development server middleware skipped:', err);
+      console.warn('Vite dev middleware skipped:', err);
     }
   }
 

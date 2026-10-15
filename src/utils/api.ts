@@ -37,17 +37,34 @@ export function getApiUrl(endpoint: string): string {
   return `http://127.0.0.1:3000${clean}`;
 }
 
-async function safeApiFetch(url: string, options?: RequestInit, timeoutMs = 4000): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(id);
-    return res;
-  } catch (err) {
-    clearTimeout(id);
-    throw err;
+async function safeApiFetch(url: string, options?: RequestInit, retries = 6, delayMs = 500): Promise<Response> {
+  let lastError: any = null;
+  let currentUrl = url;
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 3500);
+    try {
+      const res = await fetch(currentUrl, { ...options, signal: controller.signal });
+      clearTimeout(id);
+      return res;
+    } catch (err) {
+      clearTimeout(id);
+      lastError = err;
+
+      if (currentUrl.includes('127.0.0.1:3000')) {
+        currentUrl = currentUrl.replace('127.0.0.1:3000', 'localhost:3000');
+      } else if (currentUrl.includes('localhost:3000')) {
+        currentUrl = currentUrl.replace('localhost:3000', '127.0.0.1:3000');
+      }
+
+      if (attempt < retries - 1) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+    }
   }
+  throw lastError;
 }
 
 export async function fetchMongoConfig(): Promise<MongoConfig | null> {
@@ -62,7 +79,7 @@ export async function fetchMongoConfig(): Promise<MongoConfig | null> {
   try {
     const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
     if (!raw) return DEFAULT_MONGO_CONFIG;
-    return { ...DEFAULT_MONGO_CONFIG, ...JSON.parse(raw) };
+    return { ...DEFAULT_MONGO_CONFIG, ...JSON.parse(raw), enabled: true };
   } catch {
     return DEFAULT_MONGO_CONFIG;
   }
@@ -87,12 +104,13 @@ export async function resetMongoToDefault(): Promise<{ success: boolean; message
 }
 
 export async function saveMongoConfig(config: MongoConfig): Promise<{ success: boolean; message?: string }> {
+  const updated = { ...config, enabled: true };
   try {
-    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(updated));
     const res = await safeApiFetch(getApiUrl('/api/db/config'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
+      body: JSON.stringify(updated),
     });
     if (res.ok) return await res.json();
   } catch {}
@@ -134,7 +152,7 @@ export async function initMongoCollections(config: MongoConfig): Promise<DBTestR
 
   return {
     success: false,
-    message: 'خطا در ساخت کلوکشن‌ها. ابتدا اتصال به MongoDB را بررسی نمایید.',
+    message: 'خطا در ساخت کلوکشن‌ها. ابتدا از فعال بودن دیتابیس MongoDB اطمینان حاصل فرمایید.',
   };
 }
 

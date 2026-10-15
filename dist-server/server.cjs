@@ -53783,7 +53783,7 @@ var require_gssapi = __commonJS({
     exports2.GSSAPI = exports2.GSSAPICanonicalizationValue = void 0;
     exports2.performGSSAPICanonicalizeHostName = performGSSAPICanonicalizeHostName;
     exports2.resolveCname = resolveCname;
-    var dns = require("dns");
+    var dns2 = require("dns");
     var deps_1 = require_deps();
     var error_1 = require_error();
     var utils_1 = require_utils3();
@@ -53882,9 +53882,9 @@ var require_gssapi = __commonJS({
         return host;
       }
       if (mode === exports2.GSSAPICanonicalizationValue.on || mode === exports2.GSSAPICanonicalizationValue.forwardAndReverse) {
-        const { address } = await dns.promises.lookup(host);
+        const { address } = await dns2.promises.lookup(host);
         try {
-          const results = await dns.promises.resolve(address, "PTR");
+          const results = await dns2.promises.resolve(address, "PTR");
           return results.length > 0 ? results[0] : host;
         } catch {
           return await resolveCname(host);
@@ -53895,7 +53895,7 @@ var require_gssapi = __commonJS({
     }
     async function resolveCname(host) {
       try {
-        const results = await dns.promises.resolve(host, "CNAME");
+        const results = await dns2.promises.resolve(host, "CNAME");
         return results.length > 0 ? results[0] : host;
       } catch {
         return host;
@@ -63621,7 +63621,7 @@ var require_connection_string = __commonJS({
     exports2.DEFAULT_OPTIONS = exports2.OPTIONS = void 0;
     exports2.resolveSRVRecord = resolveSRVRecord;
     exports2.parseOptions = parseOptions;
-    var dns = require("dns");
+    var dns2 = require("dns");
     var mongodb_connection_string_url_1 = require_lib5();
     var process2 = require("process");
     var url_1 = require("url");
@@ -63643,12 +63643,12 @@ var require_connection_string = __commonJS({
     var LB_REPLICA_SET_ERROR = "loadBalanced option not supported with a replicaSet option";
     var LB_DIRECT_CONNECTION_ERROR = "loadBalanced option not supported when directConnection is provided";
     function retryDNSTimeoutFor(rrtype) {
-      const resolve = rrtype === "SRV" ? (address) => dns.promises.resolve(address, "SRV") : (address) => dns.promises.resolve(address, "TXT");
+      const resolve = rrtype === "SRV" ? (address) => dns2.promises.resolve(address, "SRV") : (address) => dns2.promises.resolve(address, "TXT");
       return async function dnsReqRetryTimeout(lookupAddress) {
         try {
           return await resolve(lookupAddress);
         } catch (firstDNSError) {
-          if (firstDNSError.code === dns.TIMEOUT) {
+          if (firstDNSError.code === dns2.TIMEOUT) {
             return await resolve(lookupAddress);
           } else {
             throw firstDNSError;
@@ -66911,7 +66911,7 @@ var require_srv_polling = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.SrvPoller = exports2.SrvPollingEvent = void 0;
-    var dns = require("dns");
+    var dns2 = require("dns");
     var timers_1 = require("timers");
     var error_1 = require_error();
     var mongo_types_1 = require_mongo_types();
@@ -66984,7 +66984,7 @@ var require_srv_polling = __commonJS({
         const generation = this.generation;
         let srvRecords;
         try {
-          srvRecords = await dns.promises.resolve(this.srvAddress, "SRV");
+          srvRecords = await dns2.promises.resolve(this.srvAddress, "SRV");
         } catch {
           this.failure();
           return;
@@ -69772,7 +69772,12 @@ module.exports = __toCommonJS(server_exports);
 var import_express = __toESM(require_express2(), 1);
 var import_path = __toESM(require("path"), 1);
 var import_fs = __toESM(require("fs"), 1);
+var import_dns = __toESM(require("dns"), 1);
 var import_mongodb = __toESM(require_lib6(), 1);
+try {
+  import_dns.default.setDefaultResultOrder("ipv4first");
+} catch {
+}
 process.env.DISABLE_HMR = "true";
 var app = (0, import_express.default)();
 var PORT = process.env.BACKEND_PORT || process.env.PORT || 3e3;
@@ -69803,7 +69808,8 @@ function getConfigFilePath() {
   const possiblePaths = [
     import_path.default.join(process.cwd(), "mongo-config.json"),
     import_path.default.join(exeDir, "mongo-config.json"),
-    import_path.default.join(exeDir, "..", "mongo-config.json")
+    import_path.default.join(exeDir, "..", "mongo-config.json"),
+    import_path.default.join(exeDir, "resources", "mongo-config.json")
   ];
   for (const p of possiblePaths) {
     if (import_fs.default.existsSync(p)) return p;
@@ -69816,7 +69822,7 @@ function readMongoConfig() {
     if (import_fs.default.existsSync(filePath)) {
       const raw = import_fs.default.readFileSync(filePath, "utf-8");
       const parsed = JSON.parse(raw);
-      return { ...DEFAULT_CONFIG, ...parsed };
+      return { ...DEFAULT_CONFIG, ...parsed, enabled: true, database: parsed.database || "clinic" };
     }
   } catch (e2) {
     console.warn("Error reading config file:", e2);
@@ -69826,7 +69832,7 @@ function readMongoConfig() {
 function writeMongoConfig(config) {
   try {
     const filePath = getConfigFilePath();
-    import_fs.default.writeFileSync(filePath, JSON.stringify(config, null, 2), "utf-8");
+    import_fs.default.writeFileSync(filePath, JSON.stringify({ ...config, enabled: true, database: config.database || "clinic" }, null, 2), "utf-8");
   } catch (e2) {
     console.error("Error writing config file:", e2);
   }
@@ -69847,14 +69853,37 @@ function buildMongoURI(config) {
 }
 async function getMongoClient(config) {
   const uri = buildMongoURI(config);
-  const client = new import_mongodb.MongoClient(uri, {
-    connectTimeoutMS: 5e3,
-    serverSelectionTimeoutMS: 5e3
-  });
-  await client.connect();
   const dbName = config.database || "clinic";
-  const db = client.db(dbName);
-  return { client, db };
+  try {
+    const client = new import_mongodb.MongoClient(uri, {
+      connectTimeoutMS: 4e3,
+      serverSelectionTimeoutMS: 4e3,
+      family: 4
+    });
+    await client.connect();
+    return { client, db: client.db(dbName) };
+  } catch (err1) {
+    let fallbackUri = uri;
+    if (uri.includes("127.0.0.1")) {
+      fallbackUri = uri.replace("127.0.0.1", "localhost");
+    } else if (uri.includes("localhost")) {
+      fallbackUri = uri.replace("localhost", "127.0.0.1");
+    }
+    if (fallbackUri !== uri) {
+      try {
+        const client = new import_mongodb.MongoClient(fallbackUri, {
+          connectTimeoutMS: 4e3,
+          serverSelectionTimeoutMS: 4e3,
+          family: 4
+        });
+        await client.connect();
+        return { client, db: client.db(dbName) };
+      } catch (err2) {
+        throw err1;
+      }
+    }
+    throw err1;
+  }
 }
 async function ensureCollectionsExist(db) {
   const collections = ["patients", "services", "operators", "admissions", "followups", "settings"];
@@ -69862,15 +69891,22 @@ async function ensureCollectionsExist(db) {
   const existingNames = existingCols.map((c) => c.name);
   for (const colName of collections) {
     if (!existingNames.includes(colName)) {
-      await db.createCollection(colName);
+      await db.createCollection(colName).catch(() => {
+      });
     }
   }
-  await db.collection("patients").createIndex({ id: 1 }, { unique: true });
-  await db.collection("services").createIndex({ id: 1 }, { unique: true });
-  await db.collection("operators").createIndex({ id: 1 }, { unique: true });
-  await db.collection("admissions").createIndex({ id: 1 }, { unique: true });
-  await db.collection("followups").createIndex({ id: 1 }, { unique: true });
-  await db.collection("settings").createIndex({ id: 1 }, { unique: true });
+  await db.collection("patients").createIndex({ id: 1 }, { unique: true }).catch(() => {
+  });
+  await db.collection("services").createIndex({ id: 1 }, { unique: true }).catch(() => {
+  });
+  await db.collection("operators").createIndex({ id: 1 }, { unique: true }).catch(() => {
+  });
+  await db.collection("admissions").createIndex({ id: 1 }, { unique: true }).catch(() => {
+  });
+  await db.collection("followups").createIndex({ id: 1 }, { unique: true }).catch(() => {
+  });
+  await db.collection("settings").createIndex({ id: 1 }, { unique: true }).catch(() => {
+  });
 }
 app.get("/api/ping", (req, res) => {
   res.json({ ok: true, server: "ClinicMongoBackend", time: (/* @__PURE__ */ new Date()).toISOString() });
@@ -69880,11 +69916,7 @@ app.get("/api/db/config", (req, res) => {
   res.json({ success: true, config });
 });
 app.post("/api/db/config", (req, res) => {
-  const newConfig = req.body;
-  if (!newConfig || !newConfig.host && !newConfig.uri) {
-    res.status(400).json({ success: false, message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A" });
-    return;
-  }
+  const newConfig = { ...req.body || {}, enabled: true, database: req.body?.database || "clinic" };
   writeMongoConfig(newConfig);
   res.json({ success: true, message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A MongoDB \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F", config: newConfig });
 });
@@ -69899,7 +69931,7 @@ app.post("/api/db/test", async (req, res) => {
     const mongo = await getMongoClient(config);
     client = mongo.client;
     const adminDb = client.db().admin();
-    const pingRes = await adminDb.ping();
+    await adminDb.ping();
     const collections = await mongo.db.listCollections().toArray();
     const versionInfo = await adminDb.serverStatus().catch(() => ({ version: "MongoDB Server" }));
     res.json({
@@ -69912,7 +69944,7 @@ app.post("/api/db/test", async (req, res) => {
   } catch (e2) {
     res.json({
       success: false,
-      message: `\u062E\u0637\u0627 \u062F\u0631 \u0627\u062A\u0635\u0627\u0644 \u0628\u0647 MongoDB: ${e2.message || "\u0633\u0631\u0648\u0631 \u067E\u0627\u0633\u062E\u06AF\u0648 \u0646\u06CC\u0633\u062A"}`
+      message: `\u062E\u0637\u0627 \u062F\u0631 \u0627\u062A\u0635\u0627\u0644 \u0628\u0647 MongoDB: ${e2.message || "\u0633\u0631\u0648\u06CC\u0633 MongoDB \u0631\u0648\u06CC \u0633\u06CC\u0633\u062A\u0645 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F."}`
     });
   } finally {
     if (client) {
@@ -69930,7 +69962,7 @@ app.post("/api/db/init-tables", async (req, res) => {
     await ensureCollectionsExist(mongo.db);
     res.json({
       success: true,
-      message: `\u067E\u0627\u06CC\u06AF\u0627\u0647 \u062F\u0627\u062F\u0647 '${config.database || "clinic"}' \u0648 \u0645\u062C\u0645\u0648\u0639\u0647\u200C\u0647\u0627\u06CC (Collections) \u0645\u0631\u0628\u0648\u0637\u0647 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0622\u0645\u0627\u062F\u0647\u200C\u0633\u0627\u0632\u06CC \u0634\u062F\u0646\u062F.`
+      message: `\u067E\u0627\u06CC\u06AF\u0627\u0647 \u062F\u0627\u062F\u0647 '${config.database || "clinic"}' \u0648 \u0645\u062C\u0645\u0648\u0639\u0647\u200C\u0647\u0627\u06CC \u0645\u0631\u0628\u0648\u0637\u0647 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0622\u0645\u0627\u062F\u0647\u200C\u0633\u0627\u0632\u06CC \u0634\u062F\u0646\u062F.`
     });
   } catch (e2) {
     res.status(500).json({
@@ -69946,10 +69978,6 @@ app.post("/api/db/init-tables", async (req, res) => {
 });
 app.get("/api/db/load", async (req, res) => {
   const config = readMongoConfig();
-  if (!config.enabled) {
-    res.json({ success: false, message: "\u0627\u062A\u0635\u0627\u0644 \u0628\u0647 MongoDB \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A" });
-    return;
-  }
   let client = null;
   try {
     const mongo = await getMongoClient(config);
@@ -69994,10 +70022,6 @@ app.get("/api/db/load", async (req, res) => {
 });
 app.post("/api/db/sync", async (req, res) => {
   const config = readMongoConfig();
-  if (!config.enabled) {
-    res.json({ success: false, message: "\u0627\u062A\u0635\u0627\u0644 \u0628\u0647 MongoDB \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A" });
-    return;
-  }
   const { patients, services, operators, admissions, followUps, settings } = req.body || {};
   let client = null;
   try {
@@ -70043,7 +70067,7 @@ app.post("/api/db/sync", async (req, res) => {
     }
     res.json({
       success: true,
-      message: "\u062A\u0645\u0627\u0645\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062F\u0631 \u06A9\u0644\u0648\u06A9\u0634\u0646\u200C\u0647\u0627\u06CC MongoDB \u062B\u0628\u062A \u0648 \u0647\u0645\u06AF\u0627\u0645\u200C\u0633\u0627\u0632\u06CC \u0634\u062F\u0646\u062F."
+      message: "\u062A\u0645\u0627\u0645\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062F\u0631 MongoDB \u0647\u0645\u06AF\u0627\u0645\u200C\u0633\u0627\u0632\u06CC \u0634\u062F\u0646\u062F."
     });
   } catch (e2) {
     res.status(500).json({ success: false, message: `\u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647\u200C\u0633\u0627\u0632\u06CC \u062F\u0627\u062F\u0647\u200C\u0647\u0627 \u062F\u0631 MongoDB: ${e2.message}` });
@@ -70063,7 +70087,7 @@ app.post("/api/db/clear", async (req, res) => {
     await mongo.db.collection("patients").deleteMany({});
     await mongo.db.collection("admissions").deleteMany({});
     await mongo.db.collection("followups").deleteMany({});
-    res.json({ success: true, message: "\u0645\u062C\u0645\u0648\u0639\u0647\u200C\u0647\u0627\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A\u06CC \u062F\u0631 MongoDB \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u067E\u0627\u06A9\u0633\u0627\u0632\u06CC \u0634\u062F\u0646\u062F." });
+    res.json({ success: true, message: "\u0645\u062C\u0645\u0648\u0639\u0647\u200C\u0647\u0627\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A\u06CC \u062F\u0631 MongoDB \u067E\u0627\u06A9\u0633\u0627\u0632\u06CC \u0634\u062F\u0646\u062F." });
   } catch (e2) {
     res.json({ success: false, message: e2.message });
   } finally {
@@ -70091,7 +70115,7 @@ async function setupApp() {
       });
       app.use(vite.middlewares);
     } catch (err) {
-      console.warn("Vite development server middleware skipped:", err);
+      console.warn("Vite dev middleware skipped:", err);
     }
   }
   app.listen(PORT, () => {

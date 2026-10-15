@@ -334,20 +334,7 @@ export const MongoSettingsCard: React.FC<MongoSettingsCardProps> = ({
               </div>
             </div>
 
-            {/* Enable Toggle Switch */}
-            <div className="flex flex-col justify-end">
-              <label className="flex items-center gap-2.5 p-2 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100/70 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={config.enabled}
-                  onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
-                  className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500 cursor-pointer"
-                />
-                <span className="text-xs font-semibold text-slate-800">
-                  استفاده از MongoDB به عنوان دیتابیس اصلی مطب (clinic)
-                </span>
-              </label>
-            </div>
+
           </div>
         )}
 
