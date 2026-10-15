@@ -46849,17 +46849,45 @@ function writeMySQLConfig(config) {
     console.error("Error writing mysql-config.json:", e);
   }
 }
+function ensureLocalMySQLServiceRunning() {
+  try {
+    const cp = require("child_process");
+    cp.execSync("/etc/init.d/mariadb start 2>/dev/null || service mysql start 2>/dev/null", { timeout: 3e3 });
+  } catch {
+  }
+}
 async function getDBConnection(config, selectDb = true) {
   const cfg = config || readMySQLConfig();
-  const conn = await import_promise.default.createConnection({
-    host: cfg.host,
-    port: Number(cfg.port) || 3306,
-    user: cfg.user,
-    password: cfg.password || "",
-    database: selectDb ? cfg.database : void 0,
-    connectTimeout: 7e3
-  });
-  return conn;
+  const host = cfg.host || DEFAULT_CONFIG.host;
+  const port = Number(cfg.port) || 3306;
+  const user = cfg.user || DEFAULT_CONFIG.user;
+  const password = cfg.password !== void 0 ? cfg.password : DEFAULT_CONFIG.password || "";
+  const database = selectDb ? cfg.database || DEFAULT_CONFIG.database : void 0;
+  try {
+    const conn = await import_promise.default.createConnection({
+      host,
+      port,
+      user,
+      password,
+      database,
+      connectTimeout: 7e3
+    });
+    return conn;
+  } catch (err) {
+    if ((host === "127.0.0.1" || host === "localhost") && (err.code === "ECONNREFUSED" || err.code === "PROTOCOL_CONNECTION_LOST")) {
+      ensureLocalMySQLServiceRunning();
+      await new Promise((r) => setTimeout(r, 600));
+      return await import_promise.default.createConnection({
+        host,
+        port,
+        user,
+        password,
+        database,
+        connectTimeout: 7e3
+      });
+    }
+    throw err;
+  }
 }
 app.get("/api/db/config", (req, res) => {
   const cfg = readMySQLConfig();
@@ -46905,13 +46933,29 @@ app.post("/api/db/test", async (req, res) => {
   const database = cfg.database?.trim() || DEFAULT_CONFIG.database;
   let conn = null;
   try {
-    conn = await import_promise.default.createConnection({
-      host,
-      port,
-      user,
-      password,
-      connectTimeout: 5e3
-    });
+    try {
+      conn = await import_promise.default.createConnection({
+        host,
+        port,
+        user,
+        password,
+        connectTimeout: 5e3
+      });
+    } catch (firstErr) {
+      if ((host === "127.0.0.1" || host === "localhost") && (firstErr.code === "ECONNREFUSED" || firstErr.code === "PROTOCOL_CONNECTION_LOST")) {
+        ensureLocalMySQLServiceRunning();
+        await new Promise((r) => setTimeout(r, 600));
+        conn = await import_promise.default.createConnection({
+          host,
+          port,
+          user,
+          password,
+          connectTimeout: 5e3
+        });
+      } else {
+        throw firstErr;
+      }
+    }
     const [rows] = await conn.query("SELECT VERSION() as version");
     const version = rows[0]?.version || "MySQL";
     const [dbs] = await conn.query("SHOW DATABASES LIKE ?", [database]);
@@ -46961,13 +47005,29 @@ app.post("/api/db/init-tables", async (req, res) => {
   const database = cfg.database?.trim() || DEFAULT_CONFIG.database;
   let conn = null;
   try {
-    conn = await import_promise.default.createConnection({
-      host,
-      port,
-      user,
-      password,
-      connectTimeout: 8e3
-    });
+    try {
+      conn = await import_promise.default.createConnection({
+        host,
+        port,
+        user,
+        password,
+        connectTimeout: 8e3
+      });
+    } catch (firstErr) {
+      if ((host === "127.0.0.1" || host === "localhost") && (firstErr.code === "ECONNREFUSED" || firstErr.code === "PROTOCOL_CONNECTION_LOST")) {
+        ensureLocalMySQLServiceRunning();
+        await new Promise((r) => setTimeout(r, 600));
+        conn = await import_promise.default.createConnection({
+          host,
+          port,
+          user,
+          password,
+          connectTimeout: 8e3
+        });
+      } else {
+        throw firstErr;
+      }
+    }
     await conn.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
     await conn.query(`USE \`${database}\``);
     await conn.query(`
@@ -47683,6 +47743,7 @@ async function setupApp() {
     });
     app.use(vite.middlewares);
   }
+  ensureLocalMySQLServiceRunning();
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Clinic Management App running at http://localhost:${PORT}`);
   });

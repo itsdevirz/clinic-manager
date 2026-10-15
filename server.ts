@@ -62,17 +62,46 @@ function writeMySQLConfig(config: MySQLConfig) {
   }
 }
 
+function ensureLocalMySQLServiceRunning() {
+  try {
+    const cp = require('child_process');
+    cp.execSync('/etc/init.d/mariadb start 2>/dev/null || service mysql start 2>/dev/null', { timeout: 3000 });
+  } catch {}
+}
+
 async function getDBConnection(config?: MySQLConfig, selectDb = true): Promise<Connection> {
   const cfg = config || readMySQLConfig();
-  const conn = await mysql.createConnection({
-    host: cfg.host,
-    port: Number(cfg.port) || 3306,
-    user: cfg.user,
-    password: cfg.password || '',
-    database: selectDb ? cfg.database : undefined,
-    connectTimeout: 7000,
-  });
-  return conn;
+  const host = cfg.host || DEFAULT_CONFIG.host;
+  const port = Number(cfg.port) || 3306;
+  const user = cfg.user || DEFAULT_CONFIG.user;
+  const password = cfg.password !== undefined ? cfg.password : (DEFAULT_CONFIG.password || '');
+  const database = selectDb ? (cfg.database || DEFAULT_CONFIG.database) : undefined;
+
+  try {
+    const conn = await mysql.createConnection({
+      host,
+      port,
+      user,
+      password,
+      database,
+      connectTimeout: 7000,
+    });
+    return conn;
+  } catch (err: any) {
+    if ((host === '127.0.0.1' || host === 'localhost') && (err.code === 'ECONNREFUSED' || err.code === 'PROTOCOL_CONNECTION_LOST')) {
+      ensureLocalMySQLServiceRunning();
+      await new Promise((r) => setTimeout(r, 600));
+      return await mysql.createConnection({
+        host,
+        port,
+        user,
+        password,
+        database,
+        connectTimeout: 7000,
+      });
+    }
+    throw err;
+  }
 }
 
 // -------------------------------------------------------------
@@ -134,13 +163,29 @@ app.post('/api/db/test', async (req: Request, res: Response) => {
   let conn: Connection | null = null;
   try {
     // First connect to MySQL server without selecting database
-    conn = await mysql.createConnection({
-      host,
-      port,
-      user,
-      password,
-      connectTimeout: 5000,
-    });
+    try {
+      conn = await mysql.createConnection({
+        host,
+        port,
+        user,
+        password,
+        connectTimeout: 5000,
+      });
+    } catch (firstErr: any) {
+      if ((host === '127.0.0.1' || host === 'localhost') && (firstErr.code === 'ECONNREFUSED' || firstErr.code === 'PROTOCOL_CONNECTION_LOST')) {
+        ensureLocalMySQLServiceRunning();
+        await new Promise((r) => setTimeout(r, 600));
+        conn = await mysql.createConnection({
+          host,
+          port,
+          user,
+          password,
+          connectTimeout: 5000,
+        });
+      } else {
+        throw firstErr;
+      }
+    }
 
     const [rows] = await conn.query<RowDataPacket[]>('SELECT VERSION() as version');
     const version = rows[0]?.version || 'MySQL';
@@ -199,13 +244,29 @@ app.post('/api/db/init-tables', async (req: Request, res: Response) => {
 
   let conn: Connection | null = null;
   try {
-    conn = await mysql.createConnection({
-      host,
-      port,
-      user,
-      password,
-      connectTimeout: 8000,
-    });
+    try {
+      conn = await mysql.createConnection({
+        host,
+        port,
+        user,
+        password,
+        connectTimeout: 8000,
+      });
+    } catch (firstErr: any) {
+      if ((host === '127.0.0.1' || host === 'localhost') && (firstErr.code === 'ECONNREFUSED' || firstErr.code === 'PROTOCOL_CONNECTION_LOST')) {
+        ensureLocalMySQLServiceRunning();
+        await new Promise((r) => setTimeout(r, 600));
+        conn = await mysql.createConnection({
+          host,
+          port,
+          user,
+          password,
+          connectTimeout: 8000,
+        });
+      } else {
+        throw firstErr;
+      }
+    }
 
     // 1. Create Database
     await conn.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
@@ -990,6 +1051,9 @@ async function setupApp() {
     });
     app.use(vite.middlewares);
   }
+
+  // Ensure local MySQL/MariaDB service is active if available
+  ensureLocalMySQLServiceRunning();
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Clinic Management App running at http://localhost:${PORT}`);
