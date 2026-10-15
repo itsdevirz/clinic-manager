@@ -34,6 +34,7 @@ fn spawn_backend_process(resource_dir: Option<PathBuf>) {
         let exe_candidate = dir.join("backend-server.exe");
         if exe_candidate.exists() {
             let mut cmd = Command::new(&exe_candidate);
+            cmd.current_dir(dir);
             cmd.env("PORT", "3000").env("NODE_ENV", "production");
             #[cfg(windows)]
             {
@@ -71,6 +72,7 @@ fn spawn_backend_process(resource_dir: Option<PathBuf>) {
                 if node_bin.exists() || node_bin.components().count() == 1 {
                     let mut cmd = Command::new(node_bin);
                     cmd.arg(&script_path);
+                    cmd.current_dir(dir);
                     cmd.env("PORT", "3000").env("NODE_ENV", "production");
                     #[cfg(windows)]
                     {

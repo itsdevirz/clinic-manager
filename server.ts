@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import dns from 'dns';
 import { MongoClient, Db } from 'mongodb';
 
@@ -48,9 +49,24 @@ const DEFAULT_CONFIG: MongoConfig = {
   enabled: true,
 };
 
+function getAppDataDir(): string {
+  const userHome = os.homedir();
+  const appData = process.env.APPDATA || (process.platform === 'darwin' ? path.join(userHome, 'Library', 'Application Support') : path.join(userHome, '.config'));
+  const dir = path.join(appData, 'ClinicManagement');
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch {}
+  }
+  return dir;
+}
+
 function getConfigFilePath(): string {
   if (process.env.CONFIG_PATH) return process.env.CONFIG_PATH;
   
+  const appDataFile = path.join(getAppDataDir(), 'mongo-config.json');
+  if (fs.existsSync(appDataFile)) return appDataFile;
+
   const exeDir = path.dirname(process.execPath);
   const possiblePaths = [
     path.join(process.cwd(), 'mongo-config.json'),
@@ -63,7 +79,7 @@ function getConfigFilePath(): string {
     if (fs.existsSync(p)) return p;
   }
 
-  return path.join(process.cwd(), 'mongo-config.json');
+  return appDataFile;
 }
 
 function readMongoConfig(): MongoConfig {
@@ -110,38 +126,50 @@ async function getMongoClient(config: MongoConfig): Promise<{ client: MongoClien
   const uri = buildMongoURI(config);
   const dbName = config.database || 'clinic';
 
-  // Attempt 1: Configured URI
+  // Attempt 1: Direct connection (best for local standalone MongoDB mongod)
   try {
     const client = new MongoClient(uri, {
       connectTimeoutMS: 4000,
       serverSelectionTimeoutMS: 4000,
+      directConnection: true,
       family: 4,
     });
     await client.connect();
     return { client, db: client.db(dbName) };
   } catch (err1) {
-    // Attempt 2: Swap 127.0.0.1 <-> localhost for IPv4/IPv6 socket binding flexibility
-    let fallbackUri = uri;
-    if (uri.includes('127.0.0.1')) {
-      fallbackUri = uri.replace('127.0.0.1', 'localhost');
-    } else if (uri.includes('localhost')) {
-      fallbackUri = uri.replace('localhost', '127.0.0.1');
-    }
-
-    if (fallbackUri !== uri) {
-      try {
-        const client = new MongoClient(fallbackUri, {
-          connectTimeoutMS: 4000,
-          serverSelectionTimeoutMS: 4000,
-          family: 4,
-        });
-        await client.connect();
-        return { client, db: client.db(dbName) };
-      } catch (err2) {
-        throw err1;
+    // Attempt 2: Standard connection without directConnection (e.g. Atlas / Replica Set)
+    try {
+      const client = new MongoClient(uri, {
+        connectTimeoutMS: 4000,
+        serverSelectionTimeoutMS: 4000,
+        family: 4,
+      });
+      await client.connect();
+      return { client, db: client.db(dbName) };
+    } catch (err2) {
+      // Attempt 3: Swap 127.0.0.1 <-> localhost
+      let fallbackUri = uri;
+      if (uri.includes('127.0.0.1')) {
+        fallbackUri = uri.replace('127.0.0.1', 'localhost');
+      } else if (uri.includes('localhost')) {
+        fallbackUri = uri.replace('localhost', '127.0.0.1');
       }
+
+      if (fallbackUri !== uri) {
+        try {
+          const client = new MongoClient(fallbackUri, {
+            connectTimeoutMS: 4000,
+            serverSelectionTimeoutMS: 4000,
+            family: 4,
+          });
+          await client.connect();
+          return { client, db: client.db(dbName) };
+        } catch (err3) {
+          throw err1;
+        }
+      }
+      throw err1;
     }
-    throw err1;
   }
 }
 
@@ -193,16 +221,16 @@ app.post('/api/db/test', async (req: Request, res: Response) => {
   try {
     const mongo = await getMongoClient(config);
     client = mongo.client;
-    const adminDb = client.db().admin();
-    await adminDb.ping();
+    
+    // Ping target clinic database directly
+    await mongo.db.command({ ping: 1 });
 
-    const collections = await mongo.db.listCollections().toArray();
-    const versionInfo = await adminDb.serverStatus().catch(() => ({ version: 'MongoDB Server' }));
+    const collections = await mongo.db.listCollections().toArray().catch(() => []);
 
     res.json({
       success: true,
       message: `اتصال به پایگاه داده MongoDB (دیتابیس ${config.database || 'clinic'}) با موفقیت برقرار شد.`,
-      version: versionInfo.version || 'MongoDB',
+      version: 'MongoDB Server',
       databaseExists: true,
       tablesCount: collections.length,
     });

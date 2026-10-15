@@ -129,11 +129,16 @@ export async function testMongoConnection(config: MongoConfig): Promise<DBTestRe
     if (res.ok) {
       return await res.json();
     }
-  } catch (e: any) {}
+  } catch (e: any) {
+    return {
+      success: false,
+      message: `خطا در برقراری ارتباط با سرویس داخلی برنامه: ${e?.message || 'پاسخی دریافت نشد'}. لطفاً مطمئن شوید سرویس MongoDB روی سیستم فعال است.`,
+    };
+  }
 
   return {
     success: false,
-    message: `عدم برقراری ارتباط با سرور MongoDB. بررسی کنید سرویس MongoDB روی ${config.host}:${config.port} یا آدرس URI فعال باشد.`,
+    message: `عدم برقراری ارتباط با سرور MongoDB. بررسی کنید سرویس MongoDB روی ${config.host || '127.0.0.1'}:${config.port || 27017} یا آدرس URI فعال باشد.`,
   };
 }
 

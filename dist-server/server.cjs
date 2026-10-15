@@ -53825,7 +53825,7 @@ var require_gssapi = __commonJS({
       if (!hostAddress || typeof hostAddress.host !== "string" || !credentials) {
         throw new error_1.MongoInvalidArgumentError("Connection must have host and port and credentials defined.");
       }
-      const { os } = await runtime;
+      const { os: os2 } = await runtime;
       loadKrb();
       if ("kModuleError" in krb) {
         throw krb["kModuleError"];
@@ -53840,7 +53840,7 @@ var require_gssapi = __commonJS({
         Object.assign(initOptions, { user: username, password });
       }
       const spnHost = mechanismProperties.SERVICE_HOST ?? host;
-      let spn = `${serviceName}${os.platform() === "win32" ? "/" : "@"}${spnHost}`;
+      let spn = `${serviceName}${os2.platform() === "win32" ? "/" : "@"}${spnHost}`;
       if ("SERVICE_REALM" in mechanismProperties) {
         spn = `${spn}@${mechanismProperties.SERVICE_REALM}`;
       }
@@ -54315,7 +54315,7 @@ var require_client_metadata = __commonJS({
     };
     exports2.LimitedSizeDocument = LimitedSizeDocument;
     async function makeClientMetadata(driverInfoList, { appName = "", runtime }) {
-      const { os } = await runtime;
+      const { os: os2 } = await runtime;
       const metadataDocument = new LimitedSizeDocument(512);
       if (appName.length > 0) {
         const name = bson_1.ByteUtils.utf8ByteLength(appName) <= 128 ? appName : bson_1.ByteUtils.toUTF8(bson_1.ByteUtils.fromUTF8(appName), 0, 128, false);
@@ -54345,7 +54345,7 @@ var require_client_metadata = __commonJS({
       if (!metadataDocument.ifItFitsItSits("platform", runtimeInfo)) {
         throw new error_1.MongoInvalidArgumentError("Unable to include driverInfo platform, metadata cannot exceed 512 bytes");
       }
-      const osInfo = (/* @__PURE__ */ new Map()).set("name", os.platform()).set("architecture", os.arch()).set("version", os.release()).set("type", os.type());
+      const osInfo = (/* @__PURE__ */ new Map()).set("name", os2.platform()).set("architecture", os2.arch()).set("version", os2.release()).set("type", os2.type());
       if (!metadataDocument.ifItFitsItSits("os", osInfo)) {
         for (const key of osInfo.keys()) {
           osInfo.delete(key);
@@ -69772,6 +69772,7 @@ module.exports = __toCommonJS(server_exports);
 var import_express = __toESM(require_express2(), 1);
 var import_path = __toESM(require("path"), 1);
 var import_fs = __toESM(require("fs"), 1);
+var import_os = __toESM(require("os"), 1);
 var import_dns = __toESM(require("dns"), 1);
 var import_mongodb = __toESM(require_lib6(), 1);
 try {
@@ -69802,8 +69803,22 @@ var DEFAULT_CONFIG = {
   password: "",
   enabled: true
 };
+function getAppDataDir() {
+  const userHome = import_os.default.homedir();
+  const appData = process.env.APPDATA || (process.platform === "darwin" ? import_path.default.join(userHome, "Library", "Application Support") : import_path.default.join(userHome, ".config"));
+  const dir = import_path.default.join(appData, "ClinicManagement");
+  if (!import_fs.default.existsSync(dir)) {
+    try {
+      import_fs.default.mkdirSync(dir, { recursive: true });
+    } catch {
+    }
+  }
+  return dir;
+}
 function getConfigFilePath() {
   if (process.env.CONFIG_PATH) return process.env.CONFIG_PATH;
+  const appDataFile = import_path.default.join(getAppDataDir(), "mongo-config.json");
+  if (import_fs.default.existsSync(appDataFile)) return appDataFile;
   const exeDir = import_path.default.dirname(process.execPath);
   const possiblePaths = [
     import_path.default.join(process.cwd(), "mongo-config.json"),
@@ -69814,7 +69829,7 @@ function getConfigFilePath() {
   for (const p of possiblePaths) {
     if (import_fs.default.existsSync(p)) return p;
   }
-  return import_path.default.join(process.cwd(), "mongo-config.json");
+  return appDataFile;
 }
 function readMongoConfig() {
   try {
@@ -69858,31 +69873,42 @@ async function getMongoClient(config) {
     const client = new import_mongodb.MongoClient(uri, {
       connectTimeoutMS: 4e3,
       serverSelectionTimeoutMS: 4e3,
+      directConnection: true,
       family: 4
     });
     await client.connect();
     return { client, db: client.db(dbName) };
   } catch (err1) {
-    let fallbackUri = uri;
-    if (uri.includes("127.0.0.1")) {
-      fallbackUri = uri.replace("127.0.0.1", "localhost");
-    } else if (uri.includes("localhost")) {
-      fallbackUri = uri.replace("localhost", "127.0.0.1");
-    }
-    if (fallbackUri !== uri) {
-      try {
-        const client = new import_mongodb.MongoClient(fallbackUri, {
-          connectTimeoutMS: 4e3,
-          serverSelectionTimeoutMS: 4e3,
-          family: 4
-        });
-        await client.connect();
-        return { client, db: client.db(dbName) };
-      } catch (err2) {
-        throw err1;
+    try {
+      const client = new import_mongodb.MongoClient(uri, {
+        connectTimeoutMS: 4e3,
+        serverSelectionTimeoutMS: 4e3,
+        family: 4
+      });
+      await client.connect();
+      return { client, db: client.db(dbName) };
+    } catch (err2) {
+      let fallbackUri = uri;
+      if (uri.includes("127.0.0.1")) {
+        fallbackUri = uri.replace("127.0.0.1", "localhost");
+      } else if (uri.includes("localhost")) {
+        fallbackUri = uri.replace("localhost", "127.0.0.1");
       }
+      if (fallbackUri !== uri) {
+        try {
+          const client = new import_mongodb.MongoClient(fallbackUri, {
+            connectTimeoutMS: 4e3,
+            serverSelectionTimeoutMS: 4e3,
+            family: 4
+          });
+          await client.connect();
+          return { client, db: client.db(dbName) };
+        } catch (err3) {
+          throw err1;
+        }
+      }
+      throw err1;
     }
-    throw err1;
   }
 }
 async function ensureCollectionsExist(db) {
@@ -69930,14 +69956,12 @@ app.post("/api/db/test", async (req, res) => {
   try {
     const mongo = await getMongoClient(config);
     client = mongo.client;
-    const adminDb = client.db().admin();
-    await adminDb.ping();
-    const collections = await mongo.db.listCollections().toArray();
-    const versionInfo = await adminDb.serverStatus().catch(() => ({ version: "MongoDB Server" }));
+    await mongo.db.command({ ping: 1 });
+    const collections = await mongo.db.listCollections().toArray().catch(() => []);
     res.json({
       success: true,
       message: `\u0627\u062A\u0635\u0627\u0644 \u0628\u0647 \u067E\u0627\u06CC\u06AF\u0627\u0647 \u062F\u0627\u062F\u0647 MongoDB (\u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 ${config.database || "clinic"}) \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0631\u0642\u0631\u0627\u0631 \u0634\u062F.`,
-      version: versionInfo.version || "MongoDB",
+      version: "MongoDB Server",
       databaseExists: true,
       tablesCount: collections.length
     });
