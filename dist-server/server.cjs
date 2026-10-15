@@ -46804,14 +46804,24 @@ var require_promise = __commonJS({
 
 // server.ts
 var import_express = __toESM(require_express2(), 1);
-var import_vite = require("vite");
 var import_path = __toESM(require("path"), 1);
 var import_fs = __toESM(require("fs"), 1);
 var import_promise = __toESM(require_promise(), 1);
 process.env.DISABLE_HMR = "true";
 var app = (0, import_express.default)();
 var PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
-var CONFIG_FILE = import_path.default.join(process.cwd(), "mysql-config.json");
+function getConfigFilePath() {
+  if (process.env.CONFIG_PATH) return process.env.CONFIG_PATH;
+  const cwdPath = import_path.default.join(process.cwd(), "mysql-config.json");
+  if (import_fs.default.existsSync(cwdPath)) return cwdPath;
+  const exeNeighbor = import_path.default.join(import_path.default.dirname(process.execPath), "mysql-config.json");
+  if (import_fs.default.existsSync(exeNeighbor)) return exeNeighbor;
+  const dirPath = import_path.default.join(__dirname, "mysql-config.json");
+  if (import_fs.default.existsSync(dirPath)) return dirPath;
+  const parentDirPath = import_path.default.join(__dirname, "..", "mysql-config.json");
+  if (import_fs.default.existsSync(parentDirPath)) return parentDirPath;
+  return cwdPath;
+}
 app.use(import_express.default.json({ limit: "50mb" }));
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
@@ -46832,8 +46842,9 @@ var DEFAULT_CONFIG = {
 };
 function readMySQLConfig() {
   try {
-    if (import_fs.default.existsSync(CONFIG_FILE)) {
-      const raw = import_fs.default.readFileSync(CONFIG_FILE, "utf-8");
+    const filePath = getConfigFilePath();
+    if (import_fs.default.existsSync(filePath)) {
+      const raw = import_fs.default.readFileSync(filePath, "utf-8");
       const parsed = JSON.parse(raw);
       return { ...DEFAULT_CONFIG, ...parsed };
     }
@@ -46844,12 +46855,21 @@ function readMySQLConfig() {
 }
 function writeMySQLConfig(config) {
   try {
-    import_fs.default.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), "utf-8");
+    const filePath = getConfigFilePath();
+    import_fs.default.writeFileSync(filePath, JSON.stringify(config, null, 2), "utf-8");
   } catch (e) {
     console.error("Error writing mysql-config.json:", e);
   }
 }
 function ensureLocalMySQLServiceRunning() {
+  if (process.platform === "win32") {
+    try {
+      const cp = require("child_process");
+      cp.execSync("net start MySQL80 2>nul || net start MySQL 2>nul || net start MariaDB 2>nul || net start wampmysqld64 2>nul || ver >nul", { timeout: 3e3 });
+    } catch {
+    }
+    return;
+  }
   try {
     const cp = require("child_process");
     cp.execSync("/etc/init.d/mariadb start 2>/dev/null || service mysql start 2>/dev/null", { timeout: 3e3 });
@@ -47729,23 +47749,37 @@ app.post("/api/db/clear", async (req, res) => {
 async function setupApp() {
   if (process.env.NODE_ENV === "production") {
     const distPath = import_path.default.join(process.cwd(), "dist");
-    app.use(import_express.default.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(import_path.default.join(distPath, "index.html"));
-    });
+    if (import_fs.default.existsSync(distPath)) {
+      app.use(import_express.default.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(import_path.default.join(distPath, "index.html"));
+      });
+    }
   } else {
-    const vite = await (0, import_vite.createServer)({
-      server: {
-        middlewareMode: true,
-        hmr: false
-      },
-      appType: "spa"
-    });
-    app.use(vite.middlewares);
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: {
+          middlewareMode: true,
+          hmr: false
+        },
+        appType: "spa"
+      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn("Vite development server not loaded:", e);
+    }
   }
   ensureLocalMySQLServiceRunning();
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Clinic Management App running at http://localhost:${PORT}`);
+  });
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.log(`Port ${PORT} is already in use by another running instance. Reusing existing instance.`);
+    } else {
+      console.error("Server error:", err);
+    }
   });
 }
 setupApp();

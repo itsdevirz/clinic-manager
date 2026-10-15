@@ -39,8 +39,11 @@ export function getApiUrl(endpoint: string): string {
     return `http://127.0.0.1:3000${clean}`;
   }
 
+  const w = window as any;
   const origin = window.location.origin;
   const isDesktopTauri =
+    Boolean(w.__TAURI_INTERNALS__) ||
+    Boolean(w.__TAURI__) ||
     origin.includes('tauri.localhost') ||
     origin.startsWith('tauri://') ||
     origin.startsWith('file:') ||

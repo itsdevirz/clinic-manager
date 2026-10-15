@@ -1,5 +1,4 @@
 import express, { Request, Response } from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import mysql, { Connection, RowDataPacket } from 'mysql2/promise';
@@ -8,7 +7,19 @@ process.env.DISABLE_HMR = 'true';
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const CONFIG_FILE = path.join(process.cwd(), 'mysql-config.json');
+
+function getConfigFilePath(): string {
+  if (process.env.CONFIG_PATH) return process.env.CONFIG_PATH;
+  const cwdPath = path.join(process.cwd(), 'mysql-config.json');
+  if (fs.existsSync(cwdPath)) return cwdPath;
+  const exeNeighbor = path.join(path.dirname(process.execPath), 'mysql-config.json');
+  if (fs.existsSync(exeNeighbor)) return exeNeighbor;
+  const dirPath = path.join(__dirname, 'mysql-config.json');
+  if (fs.existsSync(dirPath)) return dirPath;
+  const parentDirPath = path.join(__dirname, '..', 'mysql-config.json');
+  if (fs.existsSync(parentDirPath)) return parentDirPath;
+  return cwdPath;
+}
 
 app.use(express.json({ limit: '50mb' }));
 
@@ -43,8 +54,9 @@ const DEFAULT_CONFIG: MySQLConfig = {
 
 function readMySQLConfig(): MySQLConfig {
   try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
+    const filePath = getConfigFilePath();
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf-8');
       const parsed = JSON.parse(raw);
       return { ...DEFAULT_CONFIG, ...parsed };
     }
@@ -56,13 +68,21 @@ function readMySQLConfig(): MySQLConfig {
 
 function writeMySQLConfig(config: MySQLConfig) {
   try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
+    const filePath = getConfigFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(config, null, 2), 'utf-8');
   } catch (e) {
     console.error('Error writing mysql-config.json:', e);
   }
 }
 
 function ensureLocalMySQLServiceRunning() {
+  if (process.platform === 'win32') {
+    try {
+      const cp = require('child_process');
+      cp.execSync('net start MySQL80 2>nul || net start MySQL 2>nul || net start MariaDB 2>nul || net start wampmysqld64 2>nul || ver >nul', { timeout: 3000 });
+    } catch {}
+    return;
+  }
   try {
     const cp = require('child_process');
     cp.execSync('/etc/init.d/mariadb start 2>/dev/null || service mysql start 2>/dev/null', { timeout: 3000 });
@@ -1037,26 +1057,41 @@ app.post('/api/db/clear', async (req: Request, res: Response) => {
 async function setupApp() {
   if (process.env.NODE_ENV === 'production') {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get('*', (req: Request, res: Response) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   } else {
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: false,
-      },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: {
+          middlewareMode: true,
+          hmr: false,
+        },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn('Vite development server not loaded:', e);
+    }
   }
 
   // Ensure local MySQL/MariaDB service is active if available
   ensureLocalMySQLServiceRunning();
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Clinic Management App running at http://localhost:${PORT}`);
+  });
+
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`Port ${PORT} is already in use by another running instance. Reusing existing instance.`);
+    } else {
+      console.error('Server error:', err);
+    }
   });
 }
 

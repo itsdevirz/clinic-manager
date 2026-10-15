@@ -160,15 +160,30 @@ if [ -d "$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis" ]
 fi
 
 # کپی ملزومات بکند برای حالت پرتابل
+if [ -f "$ROOT_DIR/dist-server/backend-server.exe" ]; then
+    cp "$ROOT_DIR/dist-server/backend-server.exe" "$PORTABLE_DIR/"
+    cp "$ROOT_DIR/dist-server/backend-server.exe" "$PORTABLE_DIR/dist-server/"
+fi
 cp "$ROOT_DIR/dist-server/server.cjs" "$PORTABLE_DIR/dist-server/"
 cp "$ROOT_DIR/mysql-config.json" "$PORTABLE_DIR/"
 
-# ایجاد اسکریپت راه‌انداز کمکی ویندوز در کنار فایل پرتابل
+# ایجاد اسکریپت راه‌انداز هوشمند ویندوز در کنار فایل پرتابل
 cat << 'EOF' > "$PORTABLE_DIR/start-clinic.bat"
 @echo off
 chcp 65001 >nul
 title سامانه مدیریت کلینیک و مطب
 cd /d "%~dp0"
+
+:: اجرای بکند مستقل در صورت نیاز
+if exist "%~dp0backend-server.exe" (
+    netstat -ano | findstr :3000 >nul || start "" /B "%~dp0backend-server.exe"
+) else if exist "%~dp0dist-server\backend-server.exe" (
+    netstat -ano | findstr :3000 >nul || start "" /B "%~dp0dist-server\backend-server.exe"
+) else if exist "%~dp0dist-server\server.cjs" (
+    where node >nul 2>nul && (netstat -ano | findstr :3000 >nul || start "" /B node "%~dp0dist-server\server.cjs")
+)
+
+:: اجرای پنجره دسکتاپ برنامه
 start "" "ClinicManagement.exe"
 exit
 EOF
