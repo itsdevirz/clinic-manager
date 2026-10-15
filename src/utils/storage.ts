@@ -19,14 +19,15 @@ import {
 } from './initialData';
 
 const STORAGE_KEYS = {
-  PATIENTS: 'clinic_patients_v2',
-  SERVICES: 'clinic_services_v2_rial',
-  OPERATORS: 'clinic_operators_v2',
-  CONSUMABLES: 'clinic_consumables_v2_rial',
-  SHAREHOLDERS: 'clinic_shareholders_v2',
-  SETTINGS: 'clinic_settings_v2_rial',
-  ADMISSIONS: 'clinic_admissions_v2_rial',
-  FOLLOW_UPS: 'clinic_followups_v2',
+  PATIENTS: 'clinic_patients_real_v3',
+  SERVICES: 'clinic_services_v3_rial',
+  OPERATORS: 'clinic_operators_v3',
+  CONSUMABLES: 'clinic_consumables_v3_rial',
+  SHAREHOLDERS: 'clinic_shareholders_v3',
+  SETTINGS: 'clinic_settings_v3_rial',
+  ADMISSIONS: 'clinic_admissions_real_v3',
+  FOLLOW_UPS: 'clinic_followups_real_v3',
+  LEGACY_CLEARED: 'clinic_legacy_mock_cleared_v3',
 };
 
 function getStoredItem<T>(key: string, defaultValue: T): T {
@@ -49,25 +50,44 @@ function setStoredItem<T>(key: string, value: T): void {
 }
 
 export function loadAllClinicData() {
+  // Purge any old mock data from previous version if not already cleared
+  if (typeof window !== 'undefined' && !localStorage.getItem(STORAGE_KEYS.LEGACY_CLEARED)) {
+    localStorage.removeItem('clinic_patients_v2');
+    localStorage.removeItem('clinic_admissions_v2_rial');
+    localStorage.removeItem('clinic_followups_v2');
+    localStorage.setItem(STORAGE_KEYS.LEGACY_CLEARED, 'true');
+  }
+
   const loadedServices = getStoredItem<ServiceDefinition[]>(STORAGE_KEYS.SERVICES, INITIAL_SERVICES);
-  // Auto-upgrade if old list is smaller than the comprehensive 63-service list
-  const services = (loadedServices && loadedServices.length >= 35) ? loadedServices : INITIAL_SERVICES;
+  const services = (loadedServices && loadedServices.length > 0) ? loadedServices : INITIAL_SERVICES;
 
-  const loadedPatients = getStoredItem<Patient[]>(STORAGE_KEYS.PATIENTS, INITIAL_PATIENTS);
-  const patients = (loadedPatients && loadedPatients.length >= 10) ? loadedPatients : INITIAL_PATIENTS;
+  const patients = getStoredItem<Patient[]>(STORAGE_KEYS.PATIENTS, []);
+  const admissions = getStoredItem<Admission[]>(STORAGE_KEYS.ADMISSIONS, []);
+  const followUps = getStoredItem<FollowUpReminder[]>(STORAGE_KEYS.FOLLOW_UPS, []);
 
-  const loadedAdmissions = getStoredItem<Admission[]>(STORAGE_KEYS.ADMISSIONS, INITIAL_ADMISSIONS);
-  const admissions = (loadedAdmissions && loadedAdmissions.length >= 10) ? loadedAdmissions : INITIAL_ADMISSIONS;
+  // Filter out any leftover mock operators so only user-created operators exist
+  const rawOps = getStoredItem<Operator[]>(STORAGE_KEYS.OPERATORS, []);
+  const operators = rawOps.filter((o) => 
+    !['op-1', 'op-2', 'op-3', 'op-4'].includes(o.id) &&
+    !['دکتر حسن محمدی', 'دکتر حنانه پورسلطان', 'رعنا ایمانی', 'نوید مهدی نژاد'].includes(o.name)
+  );
+
+  // Filter out any leftover mock shareholders
+  const rawShs = getStoredItem<Shareholder[]>(STORAGE_KEYS.SHAREHOLDERS, []);
+  const shareholders = rawShs.filter((s) => 
+    !['sh-1', 'sh-2'].includes(s.id) &&
+    !['دکتر حسن محمدی', 'دکتر حنانه پورسلطان'].includes(s.name)
+  );
 
   return {
     patients,
     services,
-    operators: getStoredItem<Operator[]>(STORAGE_KEYS.OPERATORS, INITIAL_OPERATORS),
+    operators,
     consumables: getStoredItem(STORAGE_KEYS.CONSUMABLES, INITIAL_CONSUMABLES),
-    shareholders: getStoredItem<Shareholder[]>(STORAGE_KEYS.SHAREHOLDERS, INITIAL_SHAREHOLDERS),
+    shareholders,
     settings: getStoredItem<ClinicSettings>(STORAGE_KEYS.SETTINGS, INITIAL_SETTINGS),
     admissions,
-    followUps: getStoredItem<FollowUpReminder[]>(STORAGE_KEYS.FOLLOW_UPS, INITIAL_FOLLOW_UPS),
+    followUps,
   };
 }
 
@@ -91,16 +111,25 @@ export function saveAllClinicData(data: {
   setStoredItem(STORAGE_KEYS.FOLLOW_UPS, data.followUps);
 }
 
-export function resetClinicDataToDemo() {
+export function clearAllMockAndRealData() {
   localStorage.removeItem(STORAGE_KEYS.PATIENTS);
-  localStorage.removeItem(STORAGE_KEYS.SERVICES);
-  localStorage.removeItem(STORAGE_KEYS.OPERATORS);
-  localStorage.removeItem(STORAGE_KEYS.CONSUMABLES);
-  localStorage.removeItem(STORAGE_KEYS.SHAREHOLDERS);
-  localStorage.removeItem(STORAGE_KEYS.SETTINGS);
   localStorage.removeItem(STORAGE_KEYS.ADMISSIONS);
   localStorage.removeItem(STORAGE_KEYS.FOLLOW_UPS);
-  return loadAllClinicData();
+  localStorage.removeItem(STORAGE_KEYS.OPERATORS);
+  localStorage.removeItem(STORAGE_KEYS.SHAREHOLDERS);
+  localStorage.setItem(STORAGE_KEYS.LEGACY_CLEARED, 'true');
+  return {
+    ...loadAllClinicData(),
+    patients: [],
+    admissions: [],
+    followUps: [],
+    operators: [],
+    shareholders: [],
+  };
+}
+
+export function resetClinicDataToDemo() {
+  return clearAllMockAndRealData();
 }
 
 export function exportClinicDataAsJSON(data: any): string {
@@ -109,9 +138,10 @@ export function exportClinicDataAsJSON(data: any): string {
 
 export function importClinicDataFromJSON(jsonString: string) {
   const parsed = JSON.parse(jsonString);
-  if (parsed.patients && parsed.admissions) {
+  if (Array.isArray(parsed.patients) && Array.isArray(parsed.admissions)) {
     saveAllClinicData(parsed);
     return true;
   }
   return false;
 }
+

@@ -11,8 +11,27 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
+    <script>
+      // Suppress harmless Vite HMR WebSocket transport error in cloud container
+      window.addEventListener('unhandledrejection', function (e) {
+        if (
+          e.reason &&
+          ((typeof e.reason.message === 'string' && (e.reason.message.includes('WebSocket') || e.reason.message.includes('createWebSocketModuleRunnerTransport'))) ||
+            (typeof e.reason.stack === 'string' && (e.reason.stack.includes('createWebSocketModuleRunnerTransport') || e.reason.stack.includes('@vite/client'))))
+        ) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      }, true);
+
+      window.addEventListener('error', function (e) {
+        if (e.filename && e.filename.includes('@vite/client')) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      }, true);
+    </script>
   </head>
   <body class="bg-[#F8FAFC] text-slate-800 font-sans antialiased selection:bg-sky-100 selection:text-sky-900">
     <div id="root"></div>

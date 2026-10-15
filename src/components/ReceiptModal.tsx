@@ -62,7 +62,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ admission, settings,
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-sm text-slate-100">قبض و صورت‌حساب رسمی پذیرش (قطع استاندارد A4)</h3>
+              <h3 className="font-bold text-sm text-slate-100">قبض و صورت‌حساب رسمی پذیرش</h3>
               <span className="bg-sky-500/20 text-sky-300 text-[10px] font-semibold px-2 py-0.5 rounded border border-sky-400/30">
                 قالب رسمی A4
               </span>
@@ -76,11 +76,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ admission, settings,
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrint}
-            title="چاپ فیش استاندارد A4 (Ctrl + P)"
+            title="چاپ فیش (Ctrl + P)"
             className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-sky-600/30 active:scale-95 cursor-pointer"
           >
             <Printer className="w-4 h-4" />
-            <span>چاپ فیش (قطع A4)</span>
+            <span>چاپ فیش</span>
           </button>
           <button
             onClick={onClose}

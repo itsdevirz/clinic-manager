@@ -14,9 +14,16 @@ import {
   loadAllClinicData,
   saveAllClinicData,
   resetClinicDataToDemo,
+  clearAllMockAndRealData,
   exportClinicDataAsJSON,
   importClinicDataFromJSON
 } from './utils/storage';
+import {
+  fetchMySQLConfig,
+  testMySQLConnection,
+  loadClinicDataFromMySQL,
+  syncClinicDataToMySQL
+} from './utils/api';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardView } from './components/Dashboard/DashboardView';
@@ -30,6 +37,7 @@ import { PatientDossierModal } from './components/Patients/PatientDossierModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { SearchModal } from './components/SearchModal';
 import { getTodayPersianDate } from './utils/persianDate';
+import { AlertTriangle, RefreshCw, Database } from 'lucide-react';
 
 export default function App() {
   // Main loaded state
@@ -39,6 +47,13 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  const [isMySQLEnabled, setIsMySQLEnabled] = useState<boolean>(false);
+
+  // Database Connection & Realtime Auto-Sync State
+  const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [dbWarningDismissed, setDbWarningDismissed] = useState<boolean>(false);
 
   // Modals & Navigation triggers
   const [activeReceiptAdmission, setActiveReceiptAdmission] = useState<Admission | null>(null);
@@ -61,10 +76,95 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Save to localStorage whenever data changes
+  // Check MySQL connection and load data on startup
+  const checkDBConnection = useCallback(async (isInitial = false) => {
+    setDbStatus('checking');
+    try {
+      const cfg = await fetchMySQLConfig();
+      if (!cfg || !cfg.enabled) {
+        setDbStatus('disconnected');
+        setIsMySQLEnabled(false);
+        if (isInitial) {
+          addToast('⚠️ اخطار: اتصال به پایگاه داده MySQL برقرار نیست!', 'error');
+        }
+        return false;
+      }
+
+      // Test connection
+      const testRes = await testMySQLConnection(cfg);
+      if (!testRes.success) {
+        setDbStatus('disconnected');
+        setIsMySQLEnabled(false);
+        addToast(`⚠️ اخطار: عدم اتصال به دیتابیس MySQL: ${testRes.message}`, 'error');
+        return false;
+      }
+
+      // Successfully connected!
+      setDbStatus('connected');
+      setIsMySQLEnabled(true);
+      setDbWarningDismissed(false);
+
+      const loadRes = await loadClinicDataFromMySQL();
+      if (loadRes.success && loadRes.data) {
+        setClinicData((prev) => ({
+          ...prev,
+          ...loadRes.data,
+          settings: {
+            ...prev.settings,
+            ...(loadRes.data.settings || {}),
+            mysqlConfig: cfg,
+          },
+        }));
+        const nowStr = new Date().toLocaleTimeString('fa-IR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        setLastSyncTime(nowStr);
+        if (isInitial) {
+          addToast('اتصال به پایگاه داده MySQL برقرار شد و داده‌ها همگام هستند.', 'success');
+        }
+      }
+      return true;
+    } catch (e: any) {
+      setDbStatus('disconnected');
+      setIsMySQLEnabled(false);
+      addToast('⚠️ اخطار: اتصال به پایگاه داده برقرار نشد!', 'error');
+      return false;
+    }
+  }, [addToast]);
+
+  // Initial startup connection check
+  useEffect(() => {
+    checkDBConnection(true);
+  }, [checkDBConnection]);
+
+  // Save to localStorage and auto-sync to MySQL whenever clinicData changes
   useEffect(() => {
     saveAllClinicData(clinicData);
-  }, [clinicData]);
+
+    if (isMySQLEnabled && dbStatus === 'connected') {
+      setIsSyncing(true);
+      const timer = setTimeout(async () => {
+        try {
+          const res = await syncClinicDataToMySQL(clinicData);
+          if (res.success) {
+            const nowStr = new Date().toLocaleTimeString('fa-IR', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            });
+            setLastSyncTime(nowStr);
+          }
+        } catch (e) {
+          console.warn('Auto-sync error:', e);
+        } finally {
+          setIsSyncing(false);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [clinicData, isMySQLEnabled, dbStatus]);
 
   // Global Ctrl+K shortcut for search
   useEffect(() => {
@@ -294,9 +394,55 @@ export default function App() {
             }
           }}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
+          dbStatus={dbStatus}
+          isSyncing={isSyncing}
+          lastSyncTime={lastSyncTime}
+          onRetryConnection={() => checkDBConnection(false)}
+          onOpenDBSettings={() => setCurrentTab('settings')}
         />
 
         <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
+          {/* Warning Banner when Database is Disconnected */}
+          {dbStatus === 'disconnected' && !dbWarningDismissed && (
+            <div className="mb-6 bg-gradient-to-r from-rose-50 via-rose-100/60 to-rose-50 border border-rose-300 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <AlertTriangle className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-rose-950 text-xs sm:text-sm flex items-center gap-1.5">
+                    اخطار: برنامه به پایگاه داده MySQL متصل نیست!
+                  </h4>
+                  <p className="text-[11px] sm:text-xs text-rose-800 mt-0.5 leading-relaxed">
+                    داده‌های ثبت‌شده و ویرایش‌ها در حال حاضر تنها در حافظه مرورگر ذخیره می‌شوند. برای اتصال مستقیم و ذخیره دائمی خودکار در دیتابیس، تنظیمات اتصال را بررسی کنید.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                <button
+                  onClick={() => checkDBConnection(false)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-50 border border-rose-300 text-rose-800 rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>بررسی مجدد اتصال</span>
+                </button>
+                <button
+                  onClick={() => setCurrentTab('settings')}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                >
+                  <span>تنظیمات دیتابیس</span>
+                </button>
+                <button
+                  onClick={() => setDbWarningDismissed(true)}
+                  className="p-1.5 text-rose-500 hover:text-rose-800 rounded-lg transition-colors cursor-pointer"
+                  title="بستن این پیام"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
           {currentTab === 'dashboard' && (
             <DashboardView
               admissions={clinicData.admissions}
@@ -384,13 +530,33 @@ export default function App() {
           {currentTab === 'settings' && (
             <SettingsView
               settings={clinicData.settings}
+              clinicData={clinicData}
               onUpdateSettings={(settings) => {
                 setClinicData((prev) => ({ ...prev, settings }));
+                if (settings.mysqlConfig?.enabled !== undefined) {
+                  setIsMySQLEnabled(settings.mysqlConfig.enabled);
+                }
                 addToast('تنظیمات با موفقیت ذخیره شد.');
               }}
               onExportData={handleExportData}
               onImportData={handleImportData}
               onResetDemoData={handleResetDemoData}
+              onDataLoadedFromMySQL={(newData) => {
+                setClinicData((prev) => ({ ...prev, ...newData }));
+                setIsMySQLEnabled(true);
+                setDbStatus('connected');
+                const nowStr = new Date().toLocaleTimeString('fa-IR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                });
+                setLastSyncTime(nowStr);
+              }}
+              onClearLocalAndDBData={() => {
+                const fresh = clearAllMockAndRealData();
+                setClinicData(fresh);
+              }}
+              onToast={addToast}
             />
           )}
         </main>

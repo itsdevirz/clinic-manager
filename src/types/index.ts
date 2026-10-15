@@ -150,6 +150,16 @@ export interface Shareholder {
   sharePercentage: number; // درصد سهم از سود کل
 }
 
+export interface MySQLConfig {
+  host: string;
+  port: number;
+  user: string;
+  password?: string;
+  database: string;
+  enabled: boolean;
+  ssl?: boolean;
+}
+
 export interface ClinicSettings {
   clinicName: string;
   doctorName: string;
@@ -158,6 +168,7 @@ export interface ClinicSettings {
   receiptFooter: string;
   adminPin: string;
   currencyUnit: 'rial' | 'toman';
+  mysqlConfig?: MySQLConfig;
 }
 
 export type TabType =
