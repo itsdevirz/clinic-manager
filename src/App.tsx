@@ -37,7 +37,7 @@ import { PatientDossierModal } from './components/Patients/PatientDossierModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { SearchModal } from './components/SearchModal';
 import { getTodayPersianDate } from './utils/persianDate';
-import { AlertTriangle, RefreshCw, Database } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 export default function App() {
   // Main loaded state
@@ -84,9 +84,6 @@ export default function App() {
       if (!cfg || !cfg.enabled) {
         setDbStatus('disconnected');
         setIsMySQLEnabled(false);
-        if (isInitial) {
-          addToast('⚠️ اخطار: اتصال به پایگاه داده MySQL برقرار نیست!', 'error');
-        }
         return false;
       }
 
@@ -95,7 +92,9 @@ export default function App() {
       if (!testRes.success) {
         setDbStatus('disconnected');
         setIsMySQLEnabled(false);
-        addToast(`⚠️ اخطار: عدم اتصال به دیتابیس MySQL: ${testRes.message}`, 'error');
+        if (!isInitial) {
+          addToast(`⚠️ اخطار: عدم اتصال به دیتابیس MySQL: ${testRes.message}`, 'error');
+        }
         return false;
       }
 
@@ -129,7 +128,9 @@ export default function App() {
     } catch (e: any) {
       setDbStatus('disconnected');
       setIsMySQLEnabled(false);
-      addToast('⚠️ اخطار: اتصال به پایگاه داده برقرار نشد!', 'error');
+      if (!isInitial) {
+        addToast('⚠️ اخطار: اتصال به پایگاه داده برقرار نشد!', 'error');
+      }
       return false;
     }
   }, [addToast]);
@@ -404,7 +405,7 @@ export default function App() {
         <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
           {/* Warning Banner when Database is Disconnected */}
           {dbStatus === 'disconnected' && !dbWarningDismissed && (
-            <div className="mb-6 bg-gradient-to-r from-rose-50 via-rose-100/60 to-rose-50 border border-rose-300 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="mb-6 bg-gradient-to-r from-rose-50 via-rose-100/60 to-rose-50 border border-rose-300 rounded-2xl p-4 shadow-xs flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-xs">
                   <AlertTriangle className="w-5 h-5 animate-pulse" />
@@ -413,25 +414,9 @@ export default function App() {
                   <h4 className="font-bold text-rose-950 text-xs sm:text-sm flex items-center gap-1.5">
                     اخطار: برنامه به پایگاه داده MySQL متصل نیست!
                   </h4>
-                  <p className="text-[11px] sm:text-xs text-rose-800 mt-0.5 leading-relaxed">
-                    داده‌های ثبت‌شده و ویرایش‌ها در حال حاضر تنها در حافظه مرورگر ذخیره می‌شوند. برای اتصال مستقیم و ذخیره دائمی خودکار در دیتابیس، تنظیمات اتصال را بررسی کنید.
-                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 self-end md:self-center shrink-0">
-                <button
-                  onClick={() => checkDBConnection(false)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-50 border border-rose-300 text-rose-800 rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>بررسی مجدد اتصال</span>
-                </button>
-                <button
-                  onClick={() => setCurrentTab('settings')}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-                >
-                  <span>تنظیمات دیتابیس</span>
-                </button>
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => setDbWarningDismissed(true)}
                   className="p-1.5 text-rose-500 hover:text-rose-800 rounded-lg transition-colors cursor-pointer"
@@ -557,6 +542,7 @@ export default function App() {
                 setClinicData(fresh);
               }}
               onToast={addToast}
+              onRefreshAppConnection={() => checkDBConnection(false)}
             />
           )}
         </main>

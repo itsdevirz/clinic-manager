@@ -120,8 +120,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ admission, settings,
 
                   {/* Center Header: Official Document Title */}
                   <div className="w-[32%] text-center flex flex-col items-center justify-center pt-1">
-                    <div className="w-10 h-10 rounded-full border-2 border-slate-800 flex items-center justify-center mb-1 text-slate-800">
-                      <ShieldCheck className="w-6 h-6 stroke-[2.2]" />
+                    <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-300 mb-1 p-0.5 bg-white shadow-2xs">
+                      <img src="/logo.svg" alt="لوگوی کلینیک" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                     </div>
                     <h2 className="text-sm font-extrabold text-slate-900 leading-tight">
                       صورت‌حساب و برگ پذیرش رسمی

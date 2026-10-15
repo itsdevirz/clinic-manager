@@ -7,12 +7,15 @@
     "dev": "tsx server.ts",
     "start": "tsx server.ts",
     "build": "vite build",
+    "build:server": "esbuild server.ts --bundle --platform=node --format=cjs --outfile=dist-server/server.cjs --external:vite",
+    "build:all": "npm run build && npm run build:server",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "clean": "rm -rf dist server.js dist-server desktop-output",
     "lint": "tsc --noEmit",
     "tauri": "tauri",
     "tauri:dev": "tauri dev --ignore-version-mismatches",
-    "tauri:build": "tauri build --ignore-version-mismatches"
+    "tauri:build": "tauri build --ignore-version-mismatches",
+    "tauri:build:win": "tauri build --target x86_64-pc-windows-gnu --ignore-version-mismatches"
   },
   "dependencies": {
     "@avan-persian/react": "^0.1.2",
@@ -33,6 +36,7 @@
     "vite": "^8.3.0"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@tauri-apps/cli": "^2",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",

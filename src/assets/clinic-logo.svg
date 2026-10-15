@@ -1,0 +1,344 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background / Soft Sheen -->
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="85%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fdfbf7"/>
+    </radialGradient>
+
+    <!-- Luxury Gold Gradients -->
+    <linearGradient id="goldLinear1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F2D184"/>
+      <stop offset="25%" stop-color="#C59B4E"/>
+      <stop offset="50%" stop-color="#E9C77B"/>
+      <stop offset="75%" stop-color="#B28437"/>
+      <stop offset="100%" stop-color="#DDB96C"/>
+    </linearGradient>
+
+    <linearGradient id="goldLinear2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#EED089"/>
+      <stop offset="35%" stop-color="#B88A3D"/>
+      <stop offset="70%" stop-color="#F5DB9A"/>
+      <stop offset="100%" stop-color="#9E722C"/>
+    </linearGradient>
+
+    <linearGradient id="goldArcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C59B4E"/>
+      <stop offset="40%" stop-color="#F4DC9E"/>
+      <stop offset="80%" stop-color="#B38639"/>
+      <stop offset="100%" stop-color="#DDBB70"/>
+    </linearGradient>
+
+    <!-- Deep Midnight Navy Gradients -->
+    <linearGradient id="navyGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0E1B33"/>
+      <stop offset="50%" stop-color="#081224"/>
+      <stop offset="100%" stop-color="#0F1F38"/>
+    </linearGradient>
+
+    <linearGradient id="navyGrad2" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#142646"/>
+      <stop offset="60%" stop-color="#0B1527"/>
+      <stop offset="100%" stop-color="#070E1A"/>
+    </linearGradient>
+
+    <!-- Laser Star Glow Filter & Gradients -->
+    <radialGradient id="laserFlareGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1"/>
+      <stop offset="15%" stop-color="#FF2E93" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#FF147A" stop-opacity="0.6"/>
+      <stop offset="75%" stop-color="#FF409E" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#FF6EB4" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="laserBeamGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF65B2" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#FF1A82" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="1"/>
+    </linearGradient>
+
+    <!-- Filter for soft glow -->
+    <filter id="pinkGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Clean Canvas -->
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+
+  <!-- ================= 1. OUTER GOLDEN CIRCULAR RING ARC ================= -->
+  <!-- Top & Right Circular Arc -->
+  <path d="M 512 60
+           C 660 60, 770 120, 815 255
+           C 795 240, 765 210, 725 180
+           C 670 125, 595 85, 500 80
+           C 365 72, 235 130, 165 240
+           C 160 215, 175 180, 215 140
+           C 295 75, 400 60, 512 60 Z"
+        fill="url(#goldArcGrad)" />
+
+  <!-- Left Thin Golden Arc Trim -->
+  <path d="M 165 240
+           C 130 305, 110 395, 110 495
+           C 110 630, 160 740, 260 835
+           C 230 790, 185 710, 170 610
+           C 155 520, 160 415, 195 330
+           C 185 295, 175 265, 165 240 Z"
+        fill="url(#goldLinear1)" opacity="0.95" />
+
+  <!-- ================= 2. BOTTOM GOLD & NAVY CRESCENT PETALS ================= -->
+  <!-- Large sweeping Gold Petal (bottom right, cradling upward) -->
+  <path d="M 545 925
+           C 660 900, 775 805, 845 675
+           C 878 610, 888 535, 890 480
+           C 870 540, 830 635, 760 710
+           C 695 780, 615 845, 520 865
+           C 490 872, 455 868, 420 860
+           C 460 895, 500 920, 545 925 Z"
+        fill="url(#goldLinear2)" />
+
+  <!-- Inner Soft Golden Highlight on Bottom Petal -->
+  <path d="M 545 925
+           C 605 915, 680 870, 745 800
+           C 805 735, 850 645, 870 570
+           C 855 640, 805 730, 730 805
+           C 665 870, 595 910, 545 925 Z"
+        fill="#FFDF9E" opacity="0.6" />
+
+  <!-- Bottom Left sweeping Gold Petal Arc -->
+  <path d="M 260 835
+           C 335 905, 435 940, 545 925
+           C 480 910, 420 870, 375 820
+           C 310 750, 265 650, 245 540
+           C 230 650, 245 760, 260 835 Z"
+        fill="url(#goldLinear1)" />
+
+  <!-- Bottom Dark Navy Petal Stroke (tapering down to the base vertex) -->
+  <path d="M 450 630
+           C 475 700, 505 790, 545 900
+           C 515 860, 480 790, 445 720
+           C 410 650, 395 590, 400 550
+           C 415 575, 430 605, 450 630 Z"
+        fill="url(#navyGrad1)" />
+
+  <!-- ================= 3. WOMAN'S HAIR & SILHOUETTE ================= -->
+  <!-- Outer Main Hair Wave (Sweeping from top to lower left) -->
+  <path d="M 515 118
+           C 400 120, 290 190, 230 295
+           C 180 380, 165 490, 190 595
+           C 215 700, 280 795, 375 860
+           C 325 805, 275 735, 255 645
+           C 230 545, 235 440, 285 350
+           C 335 260, 425 180, 525 155
+           C 525 140, 520 128, 515 118 Z"
+        fill="url(#navyGrad1)" />
+
+  <!-- Golden Accent Hair Lock (Curving through the left hair strand) -->
+  <path d="M 290 340
+           C 255 415, 235 500, 240 595
+           C 245 680, 280 765, 335 830
+           C 295 765, 265 690, 260 610
+           C 255 525, 275 445, 310 375
+           C 305 360, 298 350, 290 340 Z"
+        fill="url(#goldLinear1)" />
+
+  <!-- Second Major Hair Wave (Mid-Back to Nape) -->
+  <path d="M 525 155
+           C 420 185, 340 270, 310 380
+           C 280 485, 295 600, 360 695
+           C 410 770, 475 835, 545 895
+           C 505 825, 455 755, 425 675
+           C 390 585, 380 490, 410 405
+           C 435 330, 485 270, 545 220
+           C 540 195, 535 175, 525 155 Z"
+        fill="url(#navyGrad2)" />
+
+  <!-- Front Hair Swirl & Crown Lock (Framing forehead and top of head) -->
+  <path d="M 515 118
+           C 545 150, 575 195, 595 245
+           C 580 235, 550 225, 520 225
+           C 475 225, 440 245, 410 275
+           C 450 250, 495 245, 540 255
+           C 575 265, 605 290, 620 325
+           C 590 295, 545 285, 505 295
+           C 485 300, 470 310, 460 325
+           C 490 310, 525 315, 555 330
+           C 580 342, 605 368, 615 395
+           C 585 365, 545 360, 510 375
+           C 460 395, 430 450, 425 505
+           C 445 460, 485 435, 535 440
+           C 520 460, 490 490, 480 525
+           C 475 545, 475 570, 480 595
+           C 455 565, 445 520, 455 470
+           C 465 420, 500 375, 545 350
+           C 525 320, 490 300, 450 295
+           C 400 290, 360 325, 335 370
+           C 370 290, 440 210, 515 118 Z"
+        fill="url(#navyGrad1)" />
+
+  <!-- Profile Neck Shadow & Jawline Under-accent -->
+  <path d="M 475 580
+           C 490 620, 510 655, 540 680
+           C 570 705, 610 715, 655 710
+           C 625 715, 590 705, 565 685
+           C 535 660, 515 620, 505 575
+           C 495 580, 485 580, 475 580 Z"
+        fill="url(#navyGrad1)" />
+
+  <!-- Chin Neck Contour Line -->
+  <path d="M 465 520
+           C 460 560, 470 600, 490 635
+           C 480 595, 475 555, 480 515 Z"
+        fill="url(#navyGrad1)" />
+
+  <!-- ================= 4. WOMAN'S FACIAL FEATURES ================= -->
+  <!-- Delicate Eyelash & Closed Eyelid -->
+  <path d="M 525 318
+           C 545 315, 575 322, 600 342
+           C 610 335, 620 328, 625 320
+           C 618 335, 608 348, 595 355
+           C 570 340, 545 335, 525 338
+           C 530 330, 530 325, 525 318 Z"
+        fill="#0A182E" />
+
+  <!-- Closed Eye Lash Line Curve with 3 Delicate Lashes -->
+  <path d="M 565 342
+           C 578 348, 592 350, 608 346
+           C 614 344, 620 340, 624 336
+           C 618 346, 610 353, 600 356
+           C 585 360, 572 355, 560 348 Z"
+        fill="#0A182E" />
+
+  <path d="M 585 352 Q 590 365 586 372 Q 583 365 581 354 Z" fill="#0A182E" />
+  <path d="M 598 350 Q 606 362 604 370 Q 598 362 594 352 Z" fill="#0A182E" />
+  <path d="M 610 344 Q 620 354 622 360 Q 614 354 607 346 Z" fill="#0A182E" />
+
+  <!-- Eyelash / Eyebrow Sweep -->
+  <path d="M 495 292
+           C 525 275, 565 272, 600 290
+           C 570 282, 530 285, 502 298
+           C 498 296, 496 294, 495 292 Z"
+        fill="#0A182E" />
+
+  <!-- Soft Rose / Coral Pink Lips -->
+  <!-- Upper Lip -->
+  <path d="M 602 475
+           C 612 465, 628 452, 642 452
+           C 652 452, 658 460, 660 468
+           C 652 472, 638 478, 625 480
+           C 612 482, 605 478, 602 475 Z"
+        fill="#D94168" />
+
+  <!-- Lower Lip (Voluptuous & Soft) -->
+  <path d="M 612 480
+           C 628 480, 645 476, 658 470
+           C 658 485, 648 505, 634 505
+           C 622 505, 615 495, 612 480 Z"
+        fill="#C23158" />
+
+  <!-- Lip Glow Highlight -->
+  <ellipse cx="634" cy="488" rx="8" ry="4" fill="#FFA5C0" opacity="0.6"/>
+
+  <!-- Nose & Forehead Contour Guide Accent (Delicate subtle shading) -->
+  <path d="M 632 398
+           C 638 408, 648 418, 660 416
+           C 655 422, 645 422, 636 414
+           C 632 408, 630 402, 632 398 Z"
+        fill="#0A182E" opacity="0.85" />
+
+  <!-- ================= 5. LASER HANDPIECE APPLICATOR ================= -->
+  <!-- Main Applicator Body (Angled sleek cone/cylinder pointing toward cheek) -->
+  <g transform="rotate(-32 780 400)">
+    <!-- Main Handpiece Shell -->
+    <path d="M 720 370
+             C 730 360, 770 345, 830 340
+             C 870 338, 905 345, 930 360
+             C 935 390, 935 440, 925 480
+             C 895 500, 855 510, 810 500
+             C 760 490, 730 460, 720 440
+             Z"
+          fill="url(#navyGrad1)" />
+
+    <!-- Sleek Golden Accent Band on Handpiece -->
+    <path d="M 760 355
+             C 770 352, 785 352, 795 355
+             L 790 490
+             C 780 492, 768 492, 755 490
+             Z"
+          fill="url(#goldLinear1)" />
+
+    <!-- Handpiece Front Nozzle Cone -->
+    <path d="M 720 370
+             L 660 400
+             C 655 405, 655 415, 660 420
+             L 720 440
+             Z"
+          fill="#060C17" />
+
+    <!-- Metallic Highlight Reflection along the Handpiece Top Edge -->
+    <path d="M 730 375
+             C 770 358, 830 350, 895 355
+             C 860 365, 800 372, 745 385 Z"
+          fill="#3B598A" opacity="0.45" />
+
+    <!-- Nozzle Golden Tip Ring -->
+    <ellipse cx="660" cy="410" rx="4" ry="12" fill="url(#goldLinear1)"/>
+  </g>
+
+  <!-- ================= 6. VIBRANT LASER BEAM & STARBURST ================= -->
+  <!-- Direct Laser Beam Line -->
+  <!-- From Handpiece Nozzle (~760, 375) to Cheek Point (550, 460) -->
+  <line x1="775" y1="380" x2="550" y2="465"
+        stroke="#FF1F88" stroke-width="6" stroke-linecap="round"
+        filter="url(#pinkGlow)"/>
+  <line x1="775" y1="380" x2="550" y2="465"
+        stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Radial Glow Behind the Sparkle Contact Point -->
+  <circle cx="550" cy="465" r="95" fill="url(#laserFlareGlow)"/>
+  <circle cx="550" cy="465" r="45" fill="#FF1A85" opacity="0.45" filter="url(#pinkGlow)"/>
+
+  <!-- 4-Point Brilliant Starburst Lens Flare -->
+  <!-- Vertical Long Ray -->
+  <path d="M 550 350
+           Q 550 445 495 465
+           Q 550 465 550 580
+           Q 550 465 605 465
+           Q 550 445 550 350 Z"
+        fill="#FF288E" filter="url(#pinkGlow)"/>
+
+  <!-- Horizontal Long Ray -->
+  <path d="M 435 465
+           Q 530 465 550 410
+           Q 550 465 665 465
+           Q 550 465 550 520
+           Q 530 465 435 465 Z"
+        fill="#FF288E" filter="url(#pinkGlow)"/>
+
+  <!-- Crisp Intense Inner White Diamond Star -->
+  <path d="M 550 395
+           Q 550 455 520 465
+           Q 550 465 550 535
+           Q 550 465 580 465
+           Q 550 455 550 395 Z"
+        fill="#FFFFFF"/>
+
+  <path d="M 480 465
+           Q 540 465 550 435
+           Q 550 465 620 465
+           Q 550 465 550 495
+           Q 540 465 480 465 Z"
+        fill="#FFFFFF"/>
+
+  <!-- Small Diagonal Sparkle Flares -->
+  <line x1="520" y1="435" x2="580" y2="495" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+  <line x1="520" y1="495" x2="580" y2="435" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- Center Pure White Diamond Hotspot -->
+  <circle cx="550" cy="465" r="5" fill="#FFFFFF"/>
+</svg>

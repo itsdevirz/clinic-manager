@@ -30,18 +30,20 @@ jobs:
       - name: نصب وابستگی‌های پکیج‌ها
         run: npm install --legacy-peer-deps
 
-      - name: بیلد فرانت‌اند
-        run: npm run build
+      - name: بیلد کامل فرانت‌اند و بکند متصل دیتابیس
+        run: npm run build:all
 
       - name: ساخت فایل‌های EXE دسکتاپ با Tauri CLI
         run: npx --yes @tauri-apps/cli build --ignore-version-mismatches
 
-      - name: آپلود فایل‌های اجرایی جهت دانلود (Artifacts)
+      - name: آپلود فایل‌های اجرایی و سرور جهت دانلود (Artifacts)
         uses: actions/upload-artifact@v4
         with:
-          name: ClinicManagement-Windows-EXE
+          name: ClinicManagement-Windows-EXE-Complete
           path: |
             src-tauri/target/release/ClinicManagement.exe
             src-tauri/target/release/bundle/nsis/*.exe
+            dist-server/server.cjs
+            mysql-config.json
           retention-days: 30
           if-no-files-found: warn

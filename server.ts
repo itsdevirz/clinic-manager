@@ -12,6 +12,17 @@ const CONFIG_FILE = path.join(process.cwd(), 'mysql-config.json');
 
 app.use(express.json({ limit: '50mb' }));
 
+// Enable CORS for desktop clients (Tauri webview on tauri://localhost or http://tauri.localhost)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 interface MySQLConfig {
   host: string;
   port: number;
@@ -22,11 +33,11 @@ interface MySQLConfig {
 }
 
 const DEFAULT_CONFIG: MySQLConfig = {
-  host: process.env.MYSQL_HOST || 'services.irn4.chabokan.net',
-  port: parseInt(process.env.MYSQL_PORT || '14951', 10),
+  host: process.env.MYSQL_HOST || '127.0.0.1',
+  port: parseInt(process.env.MYSQL_PORT || '3306', 10),
   user: process.env.MYSQL_USER || 'root',
-  password: process.env.MYSQL_PASSWORD || 'S9jClPz7YgoLF07V',
-  database: process.env.MYSQL_DATABASE || 'fred',
+  password: process.env.MYSQL_PASSWORD || '',
+  database: process.env.MYSQL_DATABASE || 'clinic_db',
   enabled: true,
 };
 
@@ -71,11 +82,14 @@ async function getDBConnection(config?: MySQLConfig, selectDb = true): Promise<C
 // 1. Get current config
 app.get('/api/db/config', (req: Request, res: Response) => {
   const cfg = readMySQLConfig();
-  // Mask password for safety in UI
   res.json({
     config: {
       ...cfg,
       hasPassword: Boolean(cfg.password && cfg.password.length > 0),
+    },
+    defaultConfig: {
+      ...DEFAULT_CONFIG,
+      hasPassword: Boolean(DEFAULT_CONFIG.password && DEFAULT_CONFIG.password.length > 0),
     },
   });
 });
@@ -86,26 +100,36 @@ app.post('/api/db/config', (req: Request, res: Response) => {
   const current = readMySQLConfig();
 
   const updated: MySQLConfig = {
-    host: body.host?.trim() || current.host || '127.0.0.1',
-    port: Number(body.port) || current.port || 3306,
-    user: body.user?.trim() || current.user || 'root',
-    password: body.password !== undefined ? body.password : current.password,
-    database: body.database?.trim() || current.database || 'clinic_db',
-    enabled: Boolean(body.enabled),
+    host: body.host?.trim() || current.host || DEFAULT_CONFIG.host,
+    port: Number(body.port) || current.port || DEFAULT_CONFIG.port,
+    user: body.user?.trim() || current.user || DEFAULT_CONFIG.user,
+    password: body.password !== undefined ? body.password : (current.password || DEFAULT_CONFIG.password),
+    database: body.database?.trim() || current.database || DEFAULT_CONFIG.database,
+    enabled: body.enabled !== undefined ? Boolean(body.enabled) : true,
   };
 
   writeMySQLConfig(updated);
   res.json({ success: true, message: 'تنظیمات دیتابیس MySQL با موفقیت ذخیره شد.', config: updated });
 });
 
+// 2.1 Reset config to system default
+app.post('/api/db/reset-default', (req: Request, res: Response) => {
+  writeMySQLConfig(DEFAULT_CONFIG);
+  res.json({
+    success: true,
+    message: 'تنظیمات به پایگاه داده پیش‌فرض اصلی با موفقیت بازگردانده شد.',
+    config: DEFAULT_CONFIG,
+  });
+});
+
 // 3. Test Connection
 app.post('/api/db/test', async (req: Request, res: Response) => {
   const cfg = req.body as MySQLConfig;
-  const host = cfg.host?.trim() || '127.0.0.1';
-  const port = Number(cfg.port) || 3306;
-  const user = cfg.user?.trim() || 'root';
-  const password = cfg.password || '';
-  const database = cfg.database?.trim() || 'clinic_db';
+  const host = cfg.host?.trim() || DEFAULT_CONFIG.host;
+  const port = Number(cfg.port) || DEFAULT_CONFIG.port;
+  const user = cfg.user?.trim() || DEFAULT_CONFIG.user;
+  const password = cfg.password !== undefined ? cfg.password : DEFAULT_CONFIG.password;
+  const database = cfg.database?.trim() || DEFAULT_CONFIG.database;
 
   let conn: Connection | null = null;
   try {
@@ -140,7 +164,6 @@ app.post('/api/db/test', async (req: Request, res: Response) => {
       tablesCount,
     });
   } catch (error: any) {
-    console.warn(`[MySQL Test Connection] Connection attempt to ${host}:${port} failed:`, error.message);
     let userMsg = error.message;
 
     if (error.code === 'ECONNREFUSED') {
@@ -168,11 +191,11 @@ app.post('/api/db/test', async (req: Request, res: Response) => {
 // 4. Initialize Database & Tables
 app.post('/api/db/init-tables', async (req: Request, res: Response) => {
   const cfg = req.body as MySQLConfig;
-  const host = cfg.host?.trim() || '127.0.0.1';
-  const port = Number(cfg.port) || 3306;
-  const user = cfg.user?.trim() || 'root';
-  const password = cfg.password || '';
-  const database = cfg.database?.trim() || 'clinic_db';
+  const host = cfg.host?.trim() || DEFAULT_CONFIG.host;
+  const port = Number(cfg.port) || DEFAULT_CONFIG.port;
+  const user = cfg.user?.trim() || DEFAULT_CONFIG.user;
+  const password = cfg.password !== undefined ? cfg.password : DEFAULT_CONFIG.password;
+  const database = cfg.database?.trim() || DEFAULT_CONFIG.database;
 
   let conn: Connection | null = null;
   try {
@@ -350,7 +373,6 @@ app.post('/api/db/init-tables', async (req: Request, res: Response) => {
       message: `پایگاه داده "${database}" و تمامی ۹ جدول موردنیاز سامانه با موفقیت در MySQL ایجاد و آماده‌سازی شدند.`,
     });
   } catch (error: any) {
-    console.warn('[MySQL Init Tables] Failed to initialize tables:', error.message);
     res.json({
       success: false,
       message: `خطا در ایجاد جداول MySQL: ${error.message}`,
@@ -531,7 +553,6 @@ app.get('/api/db/load', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.warn('[MySQL Load] Error loading data from MySQL:', error.message);
     res.json({
       success: false,
       message: `خطا در دریافت اطلاعات از دیتابیس MySQL: ${error.message}`,
@@ -830,7 +851,6 @@ app.post('/api/db/sync', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.warn('[MySQL Sync] Error syncing to MySQL:', error.message);
     res.json({
       success: false,
       message: `خطا در ذخیره‌سازی اطلاعات در دیتابیس MySQL: ${error.message}`,
@@ -908,7 +928,6 @@ app.get('/api/db/backup', async (req: Request, res: Response) => {
       message: 'نسخه پشتیبان پایگاه داده MySQL با موفقیت ایجاد شد.',
     });
   } catch (error: any) {
-    console.warn('[MySQL Backup] Error generating backup:', error.message);
     res.json({
       success: false,
       message: `خطا در تهیه نسخه پشتیبان MySQL: ${error.message}`,

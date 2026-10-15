@@ -31,6 +31,7 @@ interface SettingsViewProps {
   onDataLoadedFromMySQL: (data: any) => void;
   onClearLocalAndDBData: () => void;
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  onRefreshAppConnection?: () => Promise<boolean>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -43,6 +44,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDataLoadedFromMySQL,
   onClearLocalAndDBData,
   onToast,
+  onRefreshAppConnection,
 }) => {
   const [formData, setFormData] = useState<ClinicSettings>({ ...settings });
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -285,6 +287,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         onDataLoadedFromMySQL={onDataLoadedFromMySQL}
         onClearLocalAndDBData={onClearLocalAndDBData}
         onToast={onToast}
+        onRefreshAppConnection={onRefreshAppConnection}
       />
 
       {/* 3. Comprehensive Database & Application Backup */}
