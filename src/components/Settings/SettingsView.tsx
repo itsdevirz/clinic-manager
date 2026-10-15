@@ -5,7 +5,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { ClinicSettings } from '../../types';
-import { MySQLSettingsCard } from './MySQLSettingsCard';
+import { MongoSettingsCard } from './MongoSettingsCard';
 
 interface SettingsViewProps {
   settings: ClinicSettings;
@@ -14,7 +14,7 @@ interface SettingsViewProps {
   onExportData: () => void;
   onImportData: (jsonStr: string) => boolean;
   onResetDemoData: () => void;
-  onDataLoadedFromMySQL: (data: any) => void;
+  onDataLoadedFromMongo: (data: any) => void;
   onClearLocalAndDBData: () => void;
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
   onRefreshAppConnection?: () => Promise<boolean>;
@@ -24,10 +24,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   settings,
   clinicData,
   onUpdateSettings,
-  onExportData,
-  onImportData,
-  onResetDemoData,
-  onDataLoadedFromMySQL,
+  onDataLoadedFromMongo,
   onClearLocalAndDBData,
   onToast,
   onRefreshAppConnection,
@@ -166,10 +163,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </form>
 
-      {/* 2. MySQL Database Connection & Settings */}
-      <MySQLSettingsCard
+      {/* 2. MongoDB Database Connection & Settings */}
+      <MongoSettingsCard
         currentClinicData={clinicData}
-        onDataLoadedFromMySQL={onDataLoadedFromMySQL}
+        onDataLoadedFromMongo={onDataLoadedFromMongo}
         onClearLocalAndDBData={onClearLocalAndDBData}
         onToast={onToast}
         onRefreshAppConnection={onRefreshAppConnection}

@@ -32,7 +32,7 @@
     "targets": "all",
     "resources": [
       "../dist-server/*",
-      "../mysql-config.json"
+      "../mongo-config.json"
     ],
     "icon": [
       "icons/32x32.png",

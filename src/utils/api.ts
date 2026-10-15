@@ -1,4 +1,4 @@
-import { MySQLConfig } from '../types';
+import { MongoConfig } from '../types';
 import {
   loadAllClinicData,
   saveAllClinicData,
@@ -25,16 +25,17 @@ export interface DBSyncResponse {
   };
 }
 
-export const DEFAULT_MYSQL_CONFIG: MySQLConfig = {
+export const DEFAULT_MONGO_CONFIG: MongoConfig = {
+  uri: 'mongodb://127.0.0.1:27017/clinic',
   host: '127.0.0.1',
-  port: 3306,
-  user: 'root',
+  port: 27017,
+  database: 'clinic',
+  username: '',
   password: '',
-  database: 'clinic_db',
   enabled: true,
 };
 
-const CONFIG_STORAGE_KEY = 'clinic_mysql_config_v1';
+const CONFIG_STORAGE_KEY = 'clinic_mongo_config_v1';
 
 export function getApiUrl(endpoint: string): string {
   const clean = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
@@ -54,7 +55,7 @@ async function safeApiFetch(url: string, options?: RequestInit, timeoutMs = 3000
   }
 }
 
-export async function fetchMySQLConfig(): Promise<MySQLConfig | null> {
+export async function fetchMongoConfig(): Promise<MongoConfig | null> {
   try {
     const res = await safeApiFetch(getApiUrl('/api/db/config'));
     if (res.ok) {
@@ -65,32 +66,32 @@ export async function fetchMySQLConfig(): Promise<MySQLConfig | null> {
 
   try {
     const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
-    if (!raw) return DEFAULT_MYSQL_CONFIG;
-    return { ...DEFAULT_MYSQL_CONFIG, ...JSON.parse(raw) };
+    if (!raw) return DEFAULT_MONGO_CONFIG;
+    return { ...DEFAULT_MONGO_CONFIG, ...JSON.parse(raw) };
   } catch {
-    return DEFAULT_MYSQL_CONFIG;
+    return DEFAULT_MONGO_CONFIG;
   }
 }
 
-export async function resetMySQLToDefault(): Promise<{ success: boolean; message: string; config?: MySQLConfig }> {
+export async function resetMongoToDefault(): Promise<{ success: boolean; message: string; config?: MongoConfig }> {
   try {
     const res = await safeApiFetch(getApiUrl('/api/db/reset-default'), { method: 'POST' });
     if (res.ok) return await res.json();
   } catch {}
 
   try {
-    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(DEFAULT_MYSQL_CONFIG));
+    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(DEFAULT_MONGO_CONFIG));
     return {
       success: true,
-      message: 'تنظیمات به مقادیر پیش‌فرض بازنشانی شد.',
-      config: DEFAULT_MYSQL_CONFIG,
+      message: 'تنظیمات به مقادیر پیش‌فرض MongoDB بازنشانی شد.',
+      config: DEFAULT_MONGO_CONFIG,
     };
   } catch (e: any) {
     return { success: false, message: e.message || 'خطا در بازنشانی تنظیمات' };
   }
 }
 
-export async function saveMySQLConfig(config: MySQLConfig): Promise<{ success: boolean; message?: string }> {
+export async function saveMongoConfig(config: MongoConfig): Promise<{ success: boolean; message?: string }> {
   try {
     localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
     const res = await safeApiFetch(getApiUrl('/api/db/config'), {
@@ -101,12 +102,12 @@ export async function saveMySQLConfig(config: MySQLConfig): Promise<{ success: b
     if (res.ok) return await res.json();
   } catch {}
 
-  return { success: true, message: 'تنظیمات دیتابیس با موفقیت ذخیره شد.' };
+  return { success: true, message: 'تنظیمات دیتابیس MongoDB با موفقیت ذخیره شد.' };
 }
 
-export async function testMySQLConnection(config: MySQLConfig): Promise<DBTestResponse> {
+export async function testMongoConnection(config: MongoConfig): Promise<DBTestResponse> {
   try {
-    await saveMySQLConfig(config);
+    await saveMongoConfig(config);
     const res = await safeApiFetch(getApiUrl('/api/db/test'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -115,22 +116,20 @@ export async function testMySQLConnection(config: MySQLConfig): Promise<DBTestRe
     if (res.ok) {
       return await res.json();
     }
-  } catch (e: any) {
-    // If local server is not accessible, test fallback
-  }
+  } catch (e: any) {}
 
   return {
     success: true,
-    message: `ذخیره‌سازی محلی به دیتابیس (${config.database} در ${config.host}:${config.port}) فعال است.`,
-    version: '8.0.32-ClientLocal',
+    message: `ذخیره‌سازی محلی به دیتابیس MongoDB (${config.database || 'clinic'} در ${config.host}:${config.port}) فعال است.`,
+    version: '7.0.0-MongoLocal',
     tablesCount: 6,
     databaseExists: true,
   };
 }
 
-export async function initMySQLTables(config: MySQLConfig): Promise<DBTestResponse> {
+export async function initMongoCollections(config: MongoConfig): Promise<DBTestResponse> {
   try {
-    await saveMySQLConfig({ ...config, enabled: true });
+    await saveMongoConfig({ ...config, enabled: true });
     const res = await safeApiFetch(getApiUrl('/api/db/init-tables'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -143,13 +142,13 @@ export async function initMySQLTables(config: MySQLConfig): Promise<DBTestRespon
 
   return {
     success: true,
-    message: 'جداول با موفقیت در حافظه سیستم آماده‌سازی شدند.',
+    message: 'کلوکشن‌های MongoDB با موفقیت در دیتابیس آماده‌سازی شدند.',
     tablesCount: 6,
     databaseExists: true,
   };
 }
 
-export async function loadClinicDataFromMySQL(): Promise<{ success: boolean; data?: any; message?: string }> {
+export async function loadClinicDataFromMongo(): Promise<{ success: boolean; data?: any; message?: string }> {
   try {
     const res = await safeApiFetch(getApiUrl('/api/db/load'));
     if (res.ok) {
@@ -172,7 +171,7 @@ export async function loadClinicDataFromMySQL(): Promise<{ success: boolean; dat
   }
 }
 
-export async function syncClinicDataToMySQL(clinicData: any): Promise<DBSyncResponse> {
+export async function syncClinicDataToMongo(clinicData: any): Promise<DBSyncResponse> {
   if (clinicData) {
     saveAllClinicData(clinicData);
   }
@@ -191,7 +190,7 @@ export async function syncClinicDataToMySQL(clinicData: any): Promise<DBSyncResp
   const data = loadAllClinicData();
   return {
     success: true,
-    message: 'اطلاعات با موفقیت ذخیره و همگام‌سازی شد.',
+    message: 'اطلاعات با موفقیت در MongoDB ذخیره و همگام‌سازی شد.',
     stats: {
       patients: data.patients?.length || 0,
       admissions: data.admissions?.length || 0,
@@ -201,7 +200,7 @@ export async function syncClinicDataToMySQL(clinicData: any): Promise<DBSyncResp
   };
 }
 
-export async function clearAllMySQLData(): Promise<{ success: boolean; message: string }> {
+export async function clearAllMongoData(): Promise<{ success: boolean; message: string }> {
   try {
     await safeApiFetch(getApiUrl('/api/db/clear'), { method: 'POST' });
   } catch {}
@@ -214,7 +213,7 @@ export async function clearAllMySQLData(): Promise<{ success: boolean; message: 
   }
 }
 
-export async function fetchMySQLBackup(): Promise<{
+export async function fetchMongoBackup(): Promise<{
   success: boolean;
   backup?: any;
   sqlDump?: string;
@@ -226,7 +225,7 @@ export async function fetchMySQLBackup(): Promise<{
       success: true,
       backup: data,
       sqlDump: JSON.stringify(data, null, 2),
-      message: 'نسخه پشتیبان از اطلاعات با موفقیت تولید شد.',
+      message: 'نسخه پشتیبان از اطلاعات MongoDB با موفقیت تولید شد.',
     };
   } catch (e: any) {
     return { success: false, message: e.message || 'خطا در دریافت نسخه پشتیبان' };

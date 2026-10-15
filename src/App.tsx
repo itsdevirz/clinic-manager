@@ -19,10 +19,10 @@ import {
   importClinicDataFromJSON
 } from './utils/storage';
 import {
-  fetchMySQLConfig,
-  testMySQLConnection,
-  loadClinicDataFromMySQL,
-  syncClinicDataToMySQL
+  fetchMongoConfig,
+  testMongoConnection,
+  loadClinicDataFromMongo,
+  syncClinicDataToMongo
 } from './utils/api';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -47,7 +47,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
-  const [isMySQLEnabled, setIsMySQLEnabled] = useState<boolean>(false);
+  const [isMongoEnabled, setIsMongoEnabled] = useState<boolean>(false);
 
   // Database Connection & Realtime Auto-Sync State
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
@@ -76,34 +76,34 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Check MySQL connection and load data on startup
+  // Check MongoDB connection and load data on startup
   const checkDBConnection = useCallback(async (isInitial = false) => {
     setDbStatus('checking');
     try {
-      const cfg = await fetchMySQLConfig();
+      const cfg = await fetchMongoConfig();
       if (!cfg || !cfg.enabled) {
         setDbStatus('disconnected');
-        setIsMySQLEnabled(false);
+        setIsMongoEnabled(false);
         return false;
       }
 
       // Test connection
-      const testRes = await testMySQLConnection(cfg);
+      const testRes = await testMongoConnection(cfg);
       if (!testRes.success) {
         setDbStatus('disconnected');
-        setIsMySQLEnabled(false);
+        setIsMongoEnabled(false);
         if (!isInitial) {
-          addToast(`⚠️ اخطار: عدم اتصال به دیتابیس MySQL: ${testRes.message}`, 'error');
+          addToast(`⚠️ اخطار: عدم اتصال به دیتابیس MongoDB: ${testRes.message}`, 'error');
         }
         return false;
       }
 
       // Successfully connected!
       setDbStatus('connected');
-      setIsMySQLEnabled(true);
+      setIsMongoEnabled(true);
       setDbWarningDismissed(false);
 
-      const loadRes = await loadClinicDataFromMySQL();
+      const loadRes = await loadClinicDataFromMongo();
       if (loadRes.success && loadRes.data) {
         setClinicData((prev) => ({
           ...prev,
@@ -111,7 +111,7 @@ export default function App() {
           settings: {
             ...prev.settings,
             ...(loadRes.data.settings || {}),
-            mysqlConfig: cfg,
+            mongoConfig: cfg,
           },
         }));
         const nowStr = new Date().toLocaleTimeString('fa-IR', {
@@ -121,15 +121,15 @@ export default function App() {
         });
         setLastSyncTime(nowStr);
         if (isInitial) {
-          addToast('اتصال به پایگاه داده MySQL برقرار شد و داده‌ها همگام هستند.', 'success');
+          addToast('اتصال به پایگاه داده MongoDB (دیتابیس clinic) برقرار شد.', 'success');
         }
       }
       return true;
     } catch (e: any) {
       setDbStatus('disconnected');
-      setIsMySQLEnabled(false);
+      setIsMongoEnabled(false);
       if (!isInitial) {
-        addToast('⚠️ اخطار: اتصال به پایگاه داده برقرار نشد!', 'error');
+        addToast('⚠️ اخطار: اتصال به پایگاه داده MongoDB برقرار نشد!', 'error');
       }
       return false;
     }
@@ -140,15 +140,15 @@ export default function App() {
     checkDBConnection(true);
   }, [checkDBConnection]);
 
-  // Save to localStorage and auto-sync to MySQL whenever clinicData changes
+  // Save to localStorage and auto-sync to MongoDB whenever clinicData changes
   useEffect(() => {
     saveAllClinicData(clinicData);
 
-    if (isMySQLEnabled && dbStatus === 'connected') {
+    if (isMongoEnabled && dbStatus === 'connected') {
       setIsSyncing(true);
       const timer = setTimeout(async () => {
         try {
-          const res = await syncClinicDataToMySQL(clinicData);
+          const res = await syncClinicDataToMongo(clinicData);
           if (res.success) {
             const nowStr = new Date().toLocaleTimeString('fa-IR', {
               hour: '2-digit',
@@ -165,7 +165,7 @@ export default function App() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [clinicData, isMySQLEnabled, dbStatus]);
+  }, [clinicData, isMongoEnabled, dbStatus]);
 
   // Global Ctrl+K shortcut for search
   useEffect(() => {
@@ -412,7 +412,7 @@ export default function App() {
                 </div>
                 <div>
                   <h4 className="font-bold text-rose-950 text-xs sm:text-sm flex items-center gap-1.5">
-                    اخطار: برنامه به پایگاه داده MySQL متصل نیست!
+                    اخطار: برنامه به پایگاه داده MongoDB (clinic) متصل نیست!
                   </h4>
                 </div>
               </div>
@@ -518,17 +518,17 @@ export default function App() {
               clinicData={clinicData}
               onUpdateSettings={(settings) => {
                 setClinicData((prev) => ({ ...prev, settings }));
-                if (settings.mysqlConfig?.enabled !== undefined) {
-                  setIsMySQLEnabled(settings.mysqlConfig.enabled);
+                if (settings.mongoConfig?.enabled !== undefined) {
+                  setIsMongoEnabled(settings.mongoConfig.enabled);
                 }
                 addToast('تنظیمات با موفقیت ذخیره شد.');
               }}
               onExportData={handleExportData}
               onImportData={handleImportData}
               onResetDemoData={handleResetDemoData}
-              onDataLoadedFromMySQL={(newData) => {
+              onDataLoadedFromMongo={(newData) => {
                 setClinicData((prev) => ({ ...prev, ...newData }));
-                setIsMySQLEnabled(true);
+                setIsMongoEnabled(true);
                 setDbStatus('connected');
                 const nowStr = new Date().toLocaleTimeString('fa-IR', {
                   hour: '2-digit',

@@ -127,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div
             onClick={onOpenDBSettings}
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-emerald-800 hover:bg-emerald-100/80 cursor-pointer transition-colors shadow-2xs select-none"
-            title="کلیک برای مشاهده یا تغییر تنظیمات پایگاه داده MySQL"
+            title="کلیک برای مشاهده یا تغییر تنظیمات پایگاه داده MongoDB (clinic)"
           >
             <div className="relative flex items-center justify-center">
               <Database className="w-3.5 h-3.5 text-emerald-600" />

@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
-import mysql, { Connection, RowDataPacket } from 'mysql2/promise';
+import { MongoClient, Db } from 'mongodb';
 
 process.env.DISABLE_HMR = 'true';
 
@@ -23,21 +23,23 @@ app.use((req, res, next) => {
   next();
 });
 
-export interface MySQLConfig {
+export interface MongoConfig {
+  uri: string;
   host: string;
   port: number;
-  user: string;
-  password?: string;
   database: string;
+  username?: string;
+  password?: string;
   enabled: boolean;
 }
 
-const DEFAULT_CONFIG: MySQLConfig = {
+const DEFAULT_CONFIG: MongoConfig = {
+  uri: 'mongodb://127.0.0.1:27017/clinic',
   host: '127.0.0.1',
-  port: 3306,
-  user: 'root',
+  port: 27017,
+  database: 'clinic',
+  username: '',
   password: '',
-  database: 'clinic_db',
   enabled: true,
 };
 
@@ -46,19 +48,19 @@ function getConfigFilePath(): string {
   
   const exeDir = path.dirname(process.execPath);
   const possiblePaths = [
-    path.join(process.cwd(), 'mysql-config.json'),
-    path.join(exeDir, 'mysql-config.json'),
-    path.join(exeDir, '..', 'mysql-config.json'),
+    path.join(process.cwd(), 'mongo-config.json'),
+    path.join(exeDir, 'mongo-config.json'),
+    path.join(exeDir, '..', 'mongo-config.json'),
   ];
 
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) return p;
   }
 
-  return path.join(process.cwd(), 'mysql-config.json');
+  return path.join(process.cwd(), 'mongo-config.json');
 }
 
-function readMySQLConfig(): MySQLConfig {
+function readMongoConfig(): MongoConfig {
   try {
     const filePath = getConfigFilePath();
     if (fs.existsSync(filePath)) {
@@ -72,7 +74,7 @@ function readMySQLConfig(): MySQLConfig {
   return DEFAULT_CONFIG;
 }
 
-function writeMySQLConfig(config: MySQLConfig): void {
+function writeMongoConfig(config: MongoConfig): void {
   try {
     const filePath = getConfigFilePath();
     fs.writeFileSync(filePath, JSON.stringify(config, null, 2), 'utf-8');
@@ -81,223 +83,173 @@ function writeMySQLConfig(config: MySQLConfig): void {
   }
 }
 
-async function getRawConnection(config: MySQLConfig, withDatabase = true): Promise<Connection> {
-  const options: mysql.ConnectionOptions = {
-    host: config.host || '127.0.0.1',
-    port: config.port || 3306,
-    user: config.user || 'root',
-    password: config.password || '',
-    connectTimeout: 5000,
-  };
-  if (withDatabase && config.database) {
-    options.database = config.database;
+function buildMongoURI(config: MongoConfig): string {
+  if (config.uri && config.uri.trim() !== '') {
+    return config.uri.trim();
   }
-  return await mysql.createConnection(options);
+  const host = config.host || '127.0.0.1';
+  const port = config.port || 27017;
+  const dbName = config.database || 'clinic';
+
+  if (config.username && config.password) {
+    const user = encodeURIComponent(config.username);
+    const pass = encodeURIComponent(config.password);
+    return `mongodb://${user}:${pass}@${host}:${port}/${dbName}?authSource=admin`;
+  }
+
+  return `mongodb://${host}:${port}/${dbName}`;
 }
 
-// Ensure database and schema tables exist
-async function ensureTablesExist(conn: Connection) {
-  await conn.query(`
-    CREATE TABLE IF NOT EXISTS settings (
-      id VARCHAR(50) PRIMARY KEY,
-      data JSON NOT NULL,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
+async function getMongoClient(config: MongoConfig): Promise<{ client: MongoClient; db: Db }> {
+  const uri = buildMongoURI(config);
+  const client = new MongoClient(uri, {
+    connectTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 5000,
+  });
+  await client.connect();
+  const dbName = config.database || 'clinic';
+  const db = client.db(dbName);
+  return { client, db };
+}
 
-  await conn.query(`
-    CREATE TABLE IF NOT EXISTS patients (
-      id VARCHAR(100) PRIMARY KEY,
-      first_name VARCHAR(100) NOT NULL,
-      last_name VARCHAR(100) NOT NULL,
-      phone VARCHAR(50),
-      national_id VARCHAR(50),
-      gender VARCHAR(20),
-      birth_date VARCHAR(50),
-      notes TEXT,
-      created_at VARCHAR(50),
-      raw_data JSON
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
+async function ensureCollectionsExist(db: Db) {
+  const collections = ['patients', 'services', 'operators', 'admissions', 'followups', 'settings'];
+  const existingCols = await db.listCollections().toArray();
+  const existingNames = existingCols.map((c) => c.name);
 
-  await conn.query(`
-    CREATE TABLE IF NOT EXISTS services (
-      id VARCHAR(100) PRIMARY KEY,
-      title VARCHAR(150) NOT NULL,
-      price BIGINT NOT NULL,
-      category VARCHAR(100),
-      description TEXT,
-      raw_data JSON
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
+  for (const colName of collections) {
+    if (!existingNames.includes(colName)) {
+      await db.createCollection(colName);
+    }
+  }
 
-  await conn.query(`
-    CREATE TABLE IF NOT EXISTS operators (
-      id VARCHAR(100) PRIMARY KEY,
-      name VARCHAR(150) NOT NULL,
-      role VARCHAR(100),
-      percent INT DEFAULT 0,
-      phone VARCHAR(50),
-      raw_data JSON
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
-
-  await conn.query(`
-    CREATE TABLE IF NOT EXISTS admissions (
-      id VARCHAR(100) PRIMARY KEY,
-      patient_id VARCHAR(100),
-      patient_name VARCHAR(200),
-      admission_date VARCHAR(50),
-      total_amount BIGINT DEFAULT 0,
-      final_amount BIGINT DEFAULT 0,
-      discount_amount BIGINT DEFAULT 0,
-      payment_type VARCHAR(50),
-      operator_id VARCHAR(100),
-      operator_name VARCHAR(150),
-      raw_data JSON,
-      INDEX idx_patient (patient_id),
-      INDEX idx_date (admission_date)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
-
-  await conn.query(`
-    CREATE TABLE IF NOT EXISTS followups (
-      id VARCHAR(100) PRIMARY KEY,
-      patient_id VARCHAR(100),
-      patient_name VARCHAR(200),
-      patient_phone VARCHAR(50),
-      scheduled_date VARCHAR(50),
-      status VARCHAR(50),
-      notes TEXT,
-      raw_data JSON,
-      INDEX idx_scheduled (scheduled_date)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
+  // Create useful indexes
+  await db.collection('patients').createIndex({ id: 1 }, { unique: true });
+  await db.collection('services').createIndex({ id: 1 }, { unique: true });
+  await db.collection('operators').createIndex({ id: 1 }, { unique: true });
+  await db.collection('admissions').createIndex({ id: 1 }, { unique: true });
+  await db.collection('followups').createIndex({ id: 1 }, { unique: true });
+  await db.collection('settings').createIndex({ id: 1 }, { unique: true });
 }
 
 // API Routes
 app.get('/api/ping', (req: Request, res: Response) => {
-  res.json({ ok: true, server: 'ClinicBackend', time: new Date().toISOString() });
+  res.json({ ok: true, server: 'ClinicMongoBackend', time: new Date().toISOString() });
 });
 
 app.get('/api/db/config', (req: Request, res: Response) => {
-  const config = readMySQLConfig();
+  const config = readMongoConfig();
   res.json({ success: true, config });
 });
 
 app.post('/api/db/config', (req: Request, res: Response) => {
-  const newConfig = req.body as MySQLConfig;
-  if (!newConfig || !newConfig.host) {
+  const newConfig = req.body as MongoConfig;
+  if (!newConfig || (!newConfig.host && !newConfig.uri)) {
     res.status(400).json({ success: false, message: 'تنظیمات نامعتبر است' });
     return;
   }
-  writeMySQLConfig(newConfig);
-  res.json({ success: true, message: 'تنظیمات دیتابیس با موفقیت ذخیره شد', config: newConfig });
+  writeMongoConfig(newConfig);
+  res.json({ success: true, message: 'تنظیمات MongoDB با موفقیت ذخیره شد', config: newConfig });
 });
 
 app.post('/api/db/reset-default', (req: Request, res: Response) => {
-  writeMySQLConfig(DEFAULT_CONFIG);
-  res.json({ success: true, message: 'تنظیمات به حالت پیش‌فرض (127.0.0.1:3306) بازنشانی شد', config: DEFAULT_CONFIG });
+  writeMongoConfig(DEFAULT_CONFIG);
+  res.json({ success: true, message: 'تنظیمات به حالت پیش‌فرض (mongodb://127.0.0.1:27017/clinic) بازنشانی شد', config: DEFAULT_CONFIG });
 });
 
 app.post('/api/db/test', async (req: Request, res: Response) => {
-  const config = (req.body && req.body.host ? req.body : readMySQLConfig()) as MySQLConfig;
-  
-  let connWithoutDB: Connection | null = null;
-  let connWithDB: Connection | null = null;
+  const config = (req.body && (req.body.host || req.body.uri) ? req.body : readMongoConfig()) as MongoConfig;
+  let client: MongoClient | null = null;
 
   try {
-    connWithoutDB = await getRawConnection(config, false);
-    const [verRows] = await connWithoutDB.query<RowDataPacket[]>('SELECT VERSION() as version');
-    const versionStr = verRows[0]?.version || 'MySQL Server';
+    const mongo = await getMongoClient(config);
+    client = mongo.client;
+    const adminDb = client.db().admin();
+    const pingRes = await adminDb.ping();
 
-    const [dbRows] = await connWithoutDB.query<RowDataPacket[]>('SHOW DATABASES LIKE ?', [config.database]);
-    const databaseExists = dbRows.length > 0;
-
-    let tablesCount = 0;
-    if (databaseExists) {
-      connWithDB = await getRawConnection(config, true);
-      const [tableRows] = await connWithDB.query<RowDataPacket[]>('SHOW TABLES');
-      tablesCount = tableRows.length;
-    }
+    const collections = await mongo.db.listCollections().toArray();
+    const versionInfo = await adminDb.serverStatus().catch(() => ({ version: 'MongoDB Server' }));
 
     res.json({
       success: true,
-      message: `اتصال به MySQL با موفقیت برقرار شد. (${versionStr})`,
-      version: versionStr,
-      databaseExists,
-      tablesCount,
+      message: `اتصال به پایگاه داده MongoDB (دیتابیس ${config.database || 'clinic'}) با موفقیت برقرار شد.`,
+      version: versionInfo.version || 'MongoDB',
+      databaseExists: true,
+      tablesCount: collections.length,
     });
   } catch (e: any) {
     res.json({
       success: false,
-      message: `خطا در اتصال به MySQL: ${e.message || 'سرور پاسخگو نیست'}`,
+      message: `خطا در اتصال به MongoDB: ${e.message || 'سرور پاسخگو نیست'}`,
     });
   } finally {
-    if (connWithoutDB) await connWithoutDB.end().catch(() => {});
-    if (connWithDB) await connWithDB.end().catch(() => {});
+    if (client) {
+      await client.close().catch(() => {});
+    }
   }
 });
 
 app.post('/api/db/init-tables', async (req: Request, res: Response) => {
-  const config = (req.body && req.body.host ? req.body : readMySQLConfig()) as MySQLConfig;
-  let connWithoutDB: Connection | null = null;
-  let connWithDB: Connection | null = null;
+  const config = (req.body && (req.body.host || req.body.uri) ? req.body : readMongoConfig()) as MongoConfig;
+  let client: MongoClient | null = null;
 
   try {
-    connWithoutDB = await getRawConnection(config, false);
-    await connWithoutDB.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
-
-    connWithDB = await getRawConnection(config, true);
-    await ensureTablesExist(connWithDB);
+    const mongo = await getMongoClient(config);
+    client = mongo.client;
+    await ensureCollectionsExist(mongo.db);
 
     res.json({
       success: true,
-      message: `پایگاه داده '${config.database}' و تمامی جداول مربوطه با موفقیت ایجاد و آماده‌سازی شدند.`,
+      message: `پایگاه داده '${config.database || 'clinic'}' و مجموعه‌های (Collections) مربوطه با موفقیت آماده‌سازی شدند.`,
     });
   } catch (e: any) {
     res.status(500).json({
       success: false,
-      message: `خطا در ساخت جداول دیتابیس: ${e.message}`,
+      message: `خطا در آماده‌سازی کلوکشن‌های MongoDB: ${e.message}`,
     });
   } finally {
-    if (connWithoutDB) await connWithoutDB.end().catch(() => {});
-    if (connWithDB) await connWithDB.end().catch(() => {});
+    if (client) {
+      await client.close().catch(() => {});
+    }
   }
 });
 
 app.get('/api/db/load', async (req: Request, res: Response) => {
-  const config = readMySQLConfig();
+  const config = readMongoConfig();
   if (!config.enabled) {
-    res.json({ success: false, message: 'MySQL اتصال غیرفعال است' });
+    res.json({ success: false, message: 'اتصال به MongoDB غیرفعال است' });
     return;
   }
 
-  let conn: Connection | null = null;
+  let client: MongoClient | null = null;
   try {
-    conn = await getRawConnection(config, true);
-    await ensureTablesExist(conn);
+    const mongo = await getMongoClient(config);
+    client = mongo.client;
+    await ensureCollectionsExist(mongo.db);
 
-    const [patientsRows] = await conn.query<RowDataPacket[]>('SELECT raw_data FROM patients');
-    const patients = patientsRows.map((r) => typeof r.raw_data === 'string' ? JSON.parse(r.raw_data) : r.raw_data);
+    const cleanDoc = (doc: any) => {
+      if (!doc) return doc;
+      const { _id, ...rest } = doc;
+      return rest;
+    };
 
-    const [servicesRows] = await conn.query<RowDataPacket[]>('SELECT raw_data FROM services');
-    const services = servicesRows.map((r) => typeof r.raw_data === 'string' ? JSON.parse(r.raw_data) : r.raw_data);
+    const patientsDocs = await mongo.db.collection('patients').find({}).toArray();
+    const patients = patientsDocs.map(cleanDoc);
 
-    const [operatorsRows] = await conn.query<RowDataPacket[]>('SELECT raw_data FROM operators');
-    const operators = operatorsRows.map((r) => typeof r.raw_data === 'string' ? JSON.parse(r.raw_data) : r.raw_data);
+    const servicesDocs = await mongo.db.collection('services').find({}).toArray();
+    const services = servicesDocs.map(cleanDoc);
 
-    const [admissionsRows] = await conn.query<RowDataPacket[]>('SELECT raw_data FROM admissions ORDER BY id DESC');
-    const admissions = admissionsRows.map((r) => typeof r.raw_data === 'string' ? JSON.parse(r.raw_data) : r.raw_data);
+    const operatorsDocs = await mongo.db.collection('operators').find({}).toArray();
+    const operators = operatorsDocs.map(cleanDoc);
 
-    const [followupsRows] = await conn.query<RowDataPacket[]>('SELECT raw_data FROM followups');
-    const followUps = followupsRows.map((r) => typeof r.raw_data === 'string' ? JSON.parse(r.raw_data) : r.raw_data);
+    const admissionsDocs = await mongo.db.collection('admissions').find({}).sort({ _id: -1 }).toArray();
+    const admissions = admissionsDocs.map(cleanDoc);
 
-    const [settingsRows] = await conn.query<RowDataPacket[]>('SELECT data FROM settings WHERE id = "main_settings"');
-    let settings = null;
-    if (settingsRows.length > 0) {
-      settings = typeof settingsRows[0].data === 'string' ? JSON.parse(settingsRows[0].data) : settingsRows[0].data;
-    }
+    const followUpsDocs = await mongo.db.collection('followups').find({}).toArray();
+    const followUps = followUpsDocs.map(cleanDoc);
+
+    const settingsDoc = await mongo.db.collection('settings').findOne({ id: 'main_settings' });
+    const settings = settingsDoc ? cleanDoc(settingsDoc).data || cleanDoc(settingsDoc) : null;
 
     res.json({
       success: true,
@@ -311,128 +263,101 @@ app.get('/api/db/load', async (req: Request, res: Response) => {
       },
     });
   } catch (e: any) {
-    res.json({ success: false, message: `خطا در لود داده‌ها از MySQL: ${e.message}` });
+    res.json({ success: false, message: `خطا در بارگذاری داده‌ها از MongoDB: ${e.message}` });
   } finally {
-    if (conn) await conn.end().catch(() => {});
+    if (client) {
+      await client.close().catch(() => {});
+    }
   }
 });
 
 app.post('/api/db/sync', async (req: Request, res: Response) => {
-  const config = readMySQLConfig();
+  const config = readMongoConfig();
   if (!config.enabled) {
-    res.json({ success: false, message: 'MySQL غیرفعال است' });
+    res.json({ success: false, message: 'اتصال به MongoDB غیرفعال است' });
     return;
   }
 
   const { patients, services, operators, admissions, followUps, settings } = req.body || {};
-  let conn: Connection | null = null;
+  let client: MongoClient | null = null;
 
   try {
-    conn = await getRawConnection(config, true);
-    await ensureTablesExist(conn);
+    const mongo = await getMongoClient(config);
+    client = mongo.client;
+    await ensureCollectionsExist(mongo.db);
 
     if (Array.isArray(patients)) {
       for (const p of patients) {
         if (!p.id) continue;
-        await conn.query(
-          `REPLACE INTO patients (id, first_name, last_name, phone, national_id, gender, birth_date, notes, created_at, raw_data)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            p.id,
-            p.firstName || '',
-            p.lastName || '',
-            p.phone || '',
-            p.nationalId || '',
-            p.gender || '',
-            p.birthDate || '',
-            p.notes || '',
-            p.createdAt || '',
-            JSON.stringify(p),
-          ]
-        );
+        await mongo.db.collection('patients').replaceOne({ id: p.id }, p, { upsert: true });
       }
     }
 
     if (Array.isArray(services)) {
       for (const s of services) {
         if (!s.id) continue;
-        await conn.query(
-          `REPLACE INTO services (id, title, price, category, description, raw_data)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [s.id, s.title || '', s.price || 0, s.category || '', s.description || '', JSON.stringify(s)]
-        );
+        await mongo.db.collection('services').replaceOne({ id: s.id }, s, { upsert: true });
       }
     }
 
     if (Array.isArray(operators)) {
       for (const o of operators) {
         if (!o.id) continue;
-        await conn.query(
-          `REPLACE INTO operators (id, name, role, percent, phone, raw_data)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [o.id, o.name || '', o.role || '', o.percent || 0, o.phone || '', JSON.stringify(o)]
-        );
+        await mongo.db.collection('operators').replaceOne({ id: o.id }, o, { upsert: true });
       }
     }
 
     if (Array.isArray(admissions)) {
       for (const a of admissions) {
         if (!a.id) continue;
-        await conn.query(
-          `REPLACE INTO admissions (id, patient_id, patient_name, admission_date, total_amount, final_amount, discount_amount, payment_type, operator_id, operator_name, raw_data)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            a.id,
-            a.patientId || '',
-            a.patientName || '',
-            a.admissionDate || '',
-            a.totalAmount || 0,
-            a.finalAmount || 0,
-            a.discountAmount || 0,
-            a.paymentType || '',
-            a.operatorId || '',
-            a.operatorName || '',
-            JSON.stringify(a),
-          ]
-        );
+        await mongo.db.collection('admissions').replaceOne({ id: a.id }, a, { upsert: true });
       }
     }
 
     if (Array.isArray(followUps)) {
       for (const f of followUps) {
         if (!f.id) continue;
-        await conn.query(
-          `REPLACE INTO followups (id, patient_id, patient_name, patient_phone, scheduled_date, status, notes, raw_data)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            f.id,
-            f.patientId || '',
-            f.patientName || '',
-            f.patientPhone || '',
-            f.scheduledDate || '',
-            f.status || '',
-            f.notes || '',
-            JSON.stringify(f),
-          ]
-        );
+        await mongo.db.collection('followups').replaceOne({ id: f.id }, f, { upsert: true });
       }
     }
 
     if (settings) {
-      await conn.query(
-        `REPLACE INTO settings (id, data) VALUES ('main_settings', ?)`,
-        [JSON.stringify(settings)]
+      await mongo.db.collection('settings').replaceOne(
+        { id: 'main_settings' },
+        { id: 'main_settings', data: settings },
+        { upsert: true }
       );
     }
 
     res.json({
       success: true,
-      message: 'تمامی اطلاعات با موفقیت در جدول‌های دیتابیس MySQL ثبت و ذخیره شدند.',
+      message: 'تمامی اطلاعات با موفقیت در کلوکشن‌های MongoDB ثبت و همگام‌سازی شدند.',
     });
   } catch (e: any) {
-    res.status(500).json({ success: false, message: `خطا در ذخیره‌سازی داده‌ها در MySQL: ${e.message}` });
+    res.status(500).json({ success: false, message: `خطا در ذخیره‌سازی داده‌ها در MongoDB: ${e.message}` });
   } finally {
-    if (conn) await conn.end().catch(() => {});
+    if (client) {
+      await client.close().catch(() => {});
+    }
+  }
+});
+
+app.post('/api/db/clear', async (req: Request, res: Response) => {
+  const config = readMongoConfig();
+  let client: MongoClient | null = null;
+  try {
+    const mongo = await getMongoClient(config);
+    client = mongo.client;
+    await mongo.db.collection('patients').deleteMany({});
+    await mongo.db.collection('admissions').deleteMany({});
+    await mongo.db.collection('followups').deleteMany({});
+    res.json({ success: true, message: 'مجموعه‌های اطلاعاتی در MongoDB با موفقیت پاکسازی شدند.' });
+  } catch (e: any) {
+    res.json({ success: false, message: e.message });
+  } finally {
+    if (client) {
+      await client.close().catch(() => {});
+    }
   }
 });
 
@@ -447,7 +372,6 @@ async function setupApp() {
     }
   } else {
     try {
-      // Dynamic import of Vite in development mode
       const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
         server: { middlewareMode: true },
@@ -460,7 +384,7 @@ async function setupApp() {
   }
 
   app.listen(PORT, () => {
-    console.log(`[ClinicBackend] Express + MySQL Server running on http://127.0.0.1:${PORT}`);
+    console.log(`[ClinicMongoBackend] Express + MongoDB Server running on http://127.0.0.1:${PORT}`);
   });
 }
 
