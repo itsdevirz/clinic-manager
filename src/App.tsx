@@ -140,10 +140,8 @@ export default function App() {
     checkDBConnection(true);
   }, [checkDBConnection]);
 
-  // Save to localStorage and auto-sync to MongoDB whenever clinicData changes
+  // Realtime auto-sync to MongoDB whenever clinicData changes
   useEffect(() => {
-    saveAllClinicData(clinicData);
-
     if (isMongoEnabled && dbStatus === 'connected') {
       setIsSyncing(true);
       const timer = setTimeout(async () => {
@@ -156,13 +154,15 @@ export default function App() {
               second: '2-digit',
             });
             setLastSyncTime(nowStr);
+          } else {
+            console.warn('Sync failed:', res.message);
           }
         } catch (e) {
           console.warn('Auto-sync error:', e);
         } finally {
           setIsSyncing(false);
         }
-      }, 500);
+      }, 400);
       return () => clearTimeout(timer);
     }
   }, [clinicData, isMongoEnabled, dbStatus]);
@@ -412,11 +412,28 @@ export default function App() {
                 </div>
                 <div>
                   <h4 className="font-bold text-rose-950 text-xs sm:text-sm flex items-center gap-1.5">
-                    اخطار: برنامه به پایگاه داده MongoDB (clinic) متصل نیست!
+                    اخطار: اتصال به دیتابیس MongoDB برقرار نیست!
                   </h4>
+                  <p className="text-xs text-rose-800 mt-0.5">
+                    برای ذخیره واقعی اطلاعات، از فعال بودن MongoDB روی سیستم یا تنظیمات درست مطمئن شوید.
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => checkDBConnection(false)}
+                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  تلاش مجدد اتصال
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab('settings')}
+                  className="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-800 border border-rose-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  تنظیمات دیتابیس
+                </button>
                 <button
                   onClick={() => setDbWarningDismissed(true)}
                   className="p-1.5 text-rose-500 hover:text-rose-800 rounded-lg transition-colors cursor-pointer"

@@ -1,9 +1,4 @@
 import { MongoConfig } from '../types';
-import {
-  loadAllClinicData,
-  saveAllClinicData,
-  clearAllMockAndRealData,
-} from './storage';
 
 export interface DBTestResponse {
   success: boolean;
@@ -42,7 +37,7 @@ export function getApiUrl(endpoint: string): string {
   return `http://127.0.0.1:3000${clean}`;
 }
 
-async function safeApiFetch(url: string, options?: RequestInit, timeoutMs = 3000): Promise<Response> {
+async function safeApiFetch(url: string, options?: RequestInit, timeoutMs = 4000): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -102,7 +97,7 @@ export async function saveMongoConfig(config: MongoConfig): Promise<{ success: b
     if (res.ok) return await res.json();
   } catch {}
 
-  return { success: true, message: 'تنظیمات دیتابیس MongoDB با موفقیت ذخیره شد.' };
+  return { success: true, message: 'تنظیمات دیتابیس MongoDB ذخیره شد.' };
 }
 
 export async function testMongoConnection(config: MongoConfig): Promise<DBTestResponse> {
@@ -119,11 +114,8 @@ export async function testMongoConnection(config: MongoConfig): Promise<DBTestRe
   } catch (e: any) {}
 
   return {
-    success: true,
-    message: `ذخیره‌سازی محلی به دیتابیس MongoDB (${config.database || 'clinic'} در ${config.host}:${config.port}) فعال است.`,
-    version: '7.0.0-MongoLocal',
-    tablesCount: 6,
-    databaseExists: true,
+    success: false,
+    message: `عدم برقراری ارتباط با سرور MongoDB. بررسی کنید سرویس MongoDB روی ${config.host}:${config.port} یا آدرس URI فعال باشد.`,
   };
 }
 
@@ -141,10 +133,8 @@ export async function initMongoCollections(config: MongoConfig): Promise<DBTestR
   } catch {}
 
   return {
-    success: true,
-    message: 'کلوکشن‌های MongoDB با موفقیت در دیتابیس آماده‌سازی شدند.',
-    tablesCount: 6,
-    databaseExists: true,
+    success: false,
+    message: 'خطا در ساخت کلوکشن‌ها. ابتدا اتصال به MongoDB را بررسی نمایید.',
   };
 }
 
@@ -156,26 +146,16 @@ export async function loadClinicDataFromMongo(): Promise<{ success: boolean; dat
       if (result.success && result.data) {
         return result;
       }
+      return { success: false, message: result.message || 'خطا در بارگذاری اطلاعات از MongoDB' };
     }
-  } catch {}
-
-  try {
-    const data = loadAllClinicData();
-    return {
-      success: true,
-      data,
-      message: 'اطلاعات با موفقیت بارگذاری شد.',
-    };
   } catch (e: any) {
-    return { success: false, message: e.message || 'خطا در لود اطلاعات' };
+    return { success: false, message: e.message || 'عدم دسترسی به سرور پایگاه داده' };
   }
+
+  return { success: false, message: 'سرور دیتابیس MongoDB پاسخگو نیست.' };
 }
 
 export async function syncClinicDataToMongo(clinicData: any): Promise<DBSyncResponse> {
-  if (clinicData) {
-    saveAllClinicData(clinicData);
-  }
-
   try {
     const res = await safeApiFetch(getApiUrl('/api/db/sync'), {
       method: 'POST',
@@ -185,49 +165,19 @@ export async function syncClinicDataToMongo(clinicData: any): Promise<DBSyncResp
     if (res.ok) {
       return await res.json();
     }
-  } catch {}
+  } catch (e: any) {
+    return { success: false, message: e.message || 'خطا در همگام‌سازی با MongoDB' };
+  }
 
-  const data = loadAllClinicData();
-  return {
-    success: true,
-    message: 'اطلاعات با موفقیت در MongoDB ذخیره و همگام‌سازی شد.',
-    stats: {
-      patients: data.patients?.length || 0,
-      admissions: data.admissions?.length || 0,
-      services: data.services?.length || 0,
-      operators: data.operators?.length || 0,
-    },
-  };
+  return { success: false, message: 'خطا در برقراری ارتباط با MongoDB' };
 }
 
 export async function clearAllMongoData(): Promise<{ success: boolean; message: string }> {
   try {
-    await safeApiFetch(getApiUrl('/api/db/clear'), { method: 'POST' });
-  } catch {}
-
-  try {
-    clearAllMockAndRealData();
-    return { success: true, message: 'تمامی اطلاعات آزمایشی با موفقیت پاکسازی شدند.' };
+    const res = await safeApiFetch(getApiUrl('/api/db/clear'), { method: 'POST' });
+    if (res.ok) return await res.json();
   } catch (e: any) {
-    return { success: false, message: e.message || 'خطا در پاکسازی اطلاعات' };
+    return { success: false, message: e.message || 'خطا در پاکسازی MongoDB' };
   }
-}
-
-export async function fetchMongoBackup(): Promise<{
-  success: boolean;
-  backup?: any;
-  sqlDump?: string;
-  message?: string;
-}> {
-  try {
-    const data = loadAllClinicData();
-    return {
-      success: true,
-      backup: data,
-      sqlDump: JSON.stringify(data, null, 2),
-      message: 'نسخه پشتیبان از اطلاعات MongoDB با موفقیت تولید شد.',
-    };
-  } catch (e: any) {
-    return { success: false, message: e.message || 'خطا در دریافت نسخه پشتیبان' };
-  }
+  return { success: false, message: 'امکان ارتباط با MongoDB وجود ندارد' };
 }

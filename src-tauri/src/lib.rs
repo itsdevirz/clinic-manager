@@ -11,6 +11,8 @@ fn get_search_directories(resource_dir: Option<PathBuf>) -> Vec<PathBuf> {
         if let Some(exe_dir) = exe_path.parent() {
             dirs.push(exe_dir.to_path_buf());
             dirs.push(exe_dir.join("dist-server"));
+            dirs.push(exe_dir.join("resources"));
+            dirs.push(exe_dir.join("resources").join("dist-server"));
         }
     }
     if let Some(res) = resource_dir {
@@ -48,7 +50,6 @@ fn spawn_backend_process(resource_dir: Option<PathBuf>) {
     }
 
     // 2. Try Node.js runner with server.cjs
-    let node_bin_names = ["node.exe", "node"];
     let script_names = ["server.cjs", "dist-server/server.cjs"];
 
     for dir in &dirs {
@@ -58,15 +59,17 @@ fn spawn_backend_process(resource_dir: Option<PathBuf>) {
                 continue;
             }
 
-            for node_bin in &node_bin_names {
-                let node_path = if node_bin.contains(".exe") {
-                    dir.join(node_bin)
-                } else {
-                    PathBuf::from(node_bin)
-                };
+            // Look for node.exe in same directory or resources
+            let node_candidates = [
+                dir.join("node.exe"),
+                dir.join("dist-server").join("node.exe"),
+                PathBuf::from("node.exe"),
+                PathBuf::from("node"),
+            ];
 
-                if node_path.is_relative() || node_path.exists() {
-                    let mut cmd = Command::new(&node_path);
+            for node_bin in &node_candidates {
+                if node_bin.exists() || node_bin.components().count() == 1 {
+                    let mut cmd = Command::new(node_bin);
                     cmd.arg(&script_path);
                     cmd.env("PORT", "3000").env("NODE_ENV", "production");
                     #[cfg(windows)]
@@ -97,6 +100,9 @@ fn kill_backend_process() {
     {
         let _ = Command::new("taskkill")
             .args(&["/F", "/IM", "backend-server.exe"])
+            .output();
+        let _ = Command::new("taskkill")
+            .args(&["/F", "/IM", "node.exe"])
             .output();
     }
 }
