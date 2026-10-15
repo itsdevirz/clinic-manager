@@ -1,118 +1,49 @@
 #!/bin/bash
-# ==============================================================================
-# اسکریپت ساخت فایل اجرایی دسکتاپ ویندوز (Tauri EXE) - فرانت‌اند خالص (بدون بکند)
-# Automated Linux Build Script for Clinic Management Tauri Windows EXE
-# ==============================================================================
+# Build the Windows Tauri application and bundle its private Node.js backend runtime.
 
-set -e
+set -euo pipefail
 
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 PURPLE='\033[0;35m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-
 cd "$ROOT_DIR"
 
+NODE_RUNTIME_VERSION="${NODE_RUNTIME_VERSION:-22.14.0}"
+NODE_RUNTIME_DIR="$ROOT_DIR/build/node-win"
+NODE_RUNTIME_ZIP="$NODE_RUNTIME_DIR/node-v${NODE_RUNTIME_VERSION}-win-x64.zip"
+
 echo -e "${CYAN}======================================================================${NC}"
-echo -e "${PURPLE}   سامانه مدیریت کلینیک و مطب زیبایی - ساخت خروجی ویندوز (EXE فرانت‌اند خالص)${NC}"
+echo -e "${PURPLE}   سامانه مدیریت مطب و کلینیک - ساخت خروجی ویندوز همراه بک‌اند${NC}"
 echo -e "${CYAN}======================================================================${NC}"
-echo ""
 
-# ------------------------------------------------------------------------------
-# 1. بررسی Node.js و npm
-# ------------------------------------------------------------------------------
-echo -e "${YELLOW}[1/5] در حال بررسی Node.js و npm...${NC}"
-if ! command -v node >/dev/null 2>&1; then
-    echo -e "${RED}[خطا] Node.js روی سیستم شما نصب نیست!${NC}"
-    echo "لطفاً ابتدا Node.js را نصب کنید (نسخه ۱۸ یا بالاتر):"
-    echo "  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -"
-    echo "  sudo apt-get install -y nodejs"
-    exit 1
+echo -e "${YELLOW}[1/6] بررسی Node.js، npm و Rust... ${NC}"
+command -v node >/dev/null 2>&1 || { echo -e "${RED}Node.js برای ساخت برنامه لازم است.${NC}"; exit 1; }
+command -v npm >/dev/null 2>&1 || { echo -e "${RED}npm پیدا نشد.${NC}"; exit 1; }
+command -v cargo >/dev/null 2>&1 || { echo -e "${RED}Cargo/Rust پیدا نشد.${NC}"; exit 1; }
+echo -e "${GREEN}✓ Node $(node -v) و Cargo آماده‌اند.${NC}"
+
+echo -e "${YELLOW}[2/6] آماده‌سازی ابزارهای ساخت ویندوز... ${NC}"
+if ! command -v rustup >/dev/null 2>&1; then
+  echo -e "${RED}rustup لازم است تا تارگت ویندوز نصب شود.${NC}"
+  exit 1
 fi
-
-NODE_VER=$(node -v)
-echo -e "${GREEN}✓ Node.js یافت شد: $NODE_VER${NC}"
-
-# ------------------------------------------------------------------------------
-# 2. بررسی Rust و Cargo
-# ------------------------------------------------------------------------------
-echo -e "${YELLOW}[2/5] در حال بررسی کامپایلر Rust (کارگو)...${NC}"
-if ! command -v cargo >/dev/null 2>&1; then
-    echo -e "${RED}[خطا] کامپایلر Rust (Cargo) روی لینوکس شما نصب نیست!${NC}"
-    echo "برای نصب استاندارد Rust دستور زیر را اجرا کنید:"
-    echo "  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
-    echo "سپس ترمینال را بسته و دوباره باز کنید."
-    exit 1
-fi
-
-CARGO_VER=$(cargo -v | head -n1)
-echo -e "${GREEN}✓ Rust/Cargo یافت شد: $CARGO_VER${NC}"
-
-# ------------------------------------------------------------------------------
-# 3. بررسی تارگت کراس کامپایل ویندوز (x86_64-pc-windows-gnu)
-# ------------------------------------------------------------------------------
-echo -e "${YELLOW}[3/5] بررسی تارگت ویندوز در Rust...${NC}"
-if command -v rustup >/dev/null 2>&1; then
-    if ! rustup target list --installed | grep -q "x86_64-pc-windows-gnu"; then
-        echo -e "${CYAN}در حال اضافه کردن تارگت x86_64-pc-windows-gnu به rustup...${NC}"
-        rustup target add x86_64-pc-windows-gnu
-    else
-        echo -e "${GREEN}✓ تارگت x86_64-pc-windows-gnu فعال است.${NC}"
-    fi
-else
-    echo -e "${YELLOW}توجه: rustup یافت نشد، از پیش‌فرض cargo استفاده می‌شود.${NC}"
-fi
-
-# ------------------------------------------------------------------------------
-# 4. بررسی ابزار کراس‌کامپایلر MinGW (gcc-mingw-w64) و NSIS
-# ------------------------------------------------------------------------------
-echo -e "${YELLOW}[4/5] بررسی لینکر MinGW (x86_64-w64-mingw32-gcc) و NSIS...${NC}"
-MISSING_PKGS=0
+rustup target list --installed | grep -q '^x86_64-pc-windows-gnu$' || rustup target add x86_64-pc-windows-gnu
 
 if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
-    echo -e "${RED}[هشدار] کامپایلر و لینکر MinGW ویندوز یافت نشد!${NC}"
-    MISSING_PKGS=1
-else
-    echo -e "${GREEN}✓ لینکر MinGW ویندوز (x86_64-w64-mingw32-gcc) آماده است.${NC}"
+  echo -e "${RED}MinGW پیدا نشد. در Ubuntu/Debian اجرا کن: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64 nsis unzip curl${NC}"
+  exit 1
 fi
+command -v curl >/dev/null 2>&1 || { echo -e "${RED}curl پیدا نشد.${NC}"; exit 1; }
+command -v unzip >/dev/null 2>&1 || { echo -e "${RED}unzip پیدا نشد.${NC}"; exit 1; }
 
-if ! command -v makensis >/dev/null 2>&1; then
-    echo -e "${YELLOW}[اطلاع] ابزار NSIS (makensis) برای تولید فایل نصبی خودکار Setup.exe یافت نشد.${NC}"
-    echo -e "       (در صورت عدم وجود، فقط فایل پرتابل ClinicManagement.exe تولید خواهد شد)${NC}"
-else
-    echo -e "${GREEN}✓ ابزار NSIS (makensis) آماده است.${NC}"
-fi
-
-if [ $MISSING_PKGS -eq 1 ]; then
-    echo ""
-    echo -e "${CYAN}----------------------------------------------------------------------${NC}"
-    echo -e "${YELLOW}برای حل این مورد، بسته MinGW را با توجه به توزیع لینوکس خود نصب کنید:${NC}"
-    echo -e "• اوبونتو یا دبیان (Ubuntu / Debian / Mint):"
-    echo -e "    ${GREEN}sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64 nsis${NC}"
-    echo -e "• فدورا (Fedora / RHEL):"
-    echo -e "    ${GREEN}sudo dnf install -y mingw64-gcc mingw32-nsis${NC}"
-    echo -e "• آرچ لینوکس یا مانجارو (Arch / Manjaro):"
-    echo -e "    ${GREEN}sudo pacman -S mingw-w64-gcc nsis${NC}"
-    echo -e "${CYAN}----------------------------------------------------------------------${NC}"
-    echo ""
-    read -p "آیا مایلید سعی شود با sudo apt-get بسته‌ها نصب شوند؟ (y/N): " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64 nsis || true
-    else
-        echo "لطفاً ابتدا بسته‌های فوق را نصب نموده و دوباره اسکریپت را اجرا کنید."
-        exit 1
-    fi
-fi
-
-# مطمئن شویم پوشه کانفیگ cargo برای تارگت ویندوز وجود دارد
 mkdir -p "$ROOT_DIR/src-tauri/.cargo"
-cat << 'EOF' > "$ROOT_DIR/src-tauri/.cargo/config.toml"
+cat > "$ROOT_DIR/src-tauri/.cargo/config.toml" <<'EOF'
 [target.x86_64-pc-windows-gnu]
 linker = "x86_64-w64-mingw32-gcc"
 ar = "x86_64-w64-mingw32-gcc-ar"
@@ -120,47 +51,56 @@ ar = "x86_64-w64-mingw32-gcc-ar"
 [build]
 EOF
 
-# ------------------------------------------------------------------------------
-# 5. بیلد برنامه فرانت‌اند و کامپایل فایل اجرایی ویندوز با Tauri
-# ------------------------------------------------------------------------------
-echo -e "${YELLOW}[5/5] ساخت نهایی فایل ویندوزی EXE با Tauri (تارگت x86_64-pc-windows-gnu)...${NC}"
+echo -e "${YELLOW}[3/6] دریافت Node.js ویندوزی برای اجرای مخفی بک‌اند... ${NC}"
+mkdir -p "$NODE_RUNTIME_DIR"
+if [ ! -s "$NODE_RUNTIME_DIR/node.exe" ]; then
+  curl --fail --location --retry 3 \
+    "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/node-v${NODE_RUNTIME_VERSION}-win-x64.zip" \
+    --output "$NODE_RUNTIME_ZIP"
+  unzip -p "$NODE_RUNTIME_ZIP" "node-v${NODE_RUNTIME_VERSION}-win-x64/node.exe" > "$NODE_RUNTIME_DIR/node.exe"
+fi
+if [ ! -s "$NODE_RUNTIME_DIR/node.exe" ]; then
+  echo -e "${RED}دانلود یا استخراج node.exe ویندوزی ناموفق بود.${NC}"
+  exit 1
+fi
+echo -e "${GREEN}✓ Node.js ویندوزی برای قرارگیری داخل بسته آماده است.${NC}"
+
+echo -e "${YELLOW}[4/6] نصب وابستگی‌ها و ساخت فرانت‌اند و بک‌اند... ${NC}"
 npm install --legacy-peer-deps
 npm run build:all
+
+if [ ! -s "$ROOT_DIR/dist-server/server.cjs" ]; then
+  echo -e "${RED}فایل dist-server/server.cjs ساخته نشد؛ ساخت متوقف شد.${NC}"
+  exit 1
+fi
+if [ ! -s "$ROOT_DIR/mongo-config.json" ]; then
+  echo -e "${RED}فایل mongo-config.json پیدا نشد.${NC}"
+  exit 1
+fi
+
+echo -e "${YELLOW}[5/6] ساخت برنامه Tauri برای ویندوز... ${NC}"
 npm run tauri:build:win
 
-# ------------------------------------------------------------------------------
-# 6. ساخت پوشه خروجی تمیز و ساماندهی فایل‌ها
-# ------------------------------------------------------------------------------
+echo -e "${YELLOW}[6/6] مرتب‌سازی خروجی‌ها... ${NC}"
 OUT_DIR="$ROOT_DIR/desktop-output/windows"
 PORTABLE_DIR="$OUT_DIR/ClinicManagement-Portable"
-
+TARGET_EXE="$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/ClinicManagement.exe"
 mkdir -p "$PORTABLE_DIR"
 
-# کپی فایل اجرایی اصلی
-if [ -f "$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/ClinicManagement.exe" ]; then
-    cp "$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/ClinicManagement.exe" "$PORTABLE_DIR/"
-    cp "$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/ClinicManagement.exe" "$OUT_DIR/"
+if [ ! -s "$TARGET_EXE" ]; then
+  echo -e "${RED}فایل ClinicManagement.exe ساخته نشد.${NC}"
+  exit 1
+fi
+cp "$TARGET_EXE" "$PORTABLE_DIR/"
+cp "$TARGET_EXE" "$OUT_DIR/"
+
+NSIS_DIR="$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis"
+if [ -d "$NSIS_DIR" ]; then
+  find "$NSIS_DIR" -maxdepth 1 -type f -iname '*.exe' -exec cp -f {} "$OUT_DIR/" \;
 fi
 
-# کپی فایل نصبی NSIS در صورت وجود
-if [ -d "$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis" ]; then
-    cp "$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/"*.exe "$OUT_DIR/" 2>/dev/null || true
-fi
-
-echo ""
-echo -e "${GREEN}======================================================================${NC}"
-echo -e "${GREEN}   ✓ ساخت فایل EXE مستقل فرانت‌اند با موفقیت کامل انجام شد!${NC}"
-echo -e "${GREEN}======================================================================${NC}"
-echo ""
-echo -e "${CYAN}فایل‌های خروجی در مسیر زیر قرار دارند:${NC}"
-echo -e "${YELLOW}$OUT_DIR${NC}"
-echo ""
-if ls "$OUT_DIR"/*setup*.exe 1> /dev/null 2>&1 || ls "$OUT_DIR"/*Setup*.exe 1> /dev/null 2>&1; then
-    echo -e "1) فایل نصبی ویندوز (NSIS Installer):"
-    ls -lh "$OUT_DIR"/*[sS]etup*.exe 2>/dev/null || true
-    echo ""
-fi
-echo -e "2) فایل تک برنامه‌ای ویندوز (Portable EXE):"
-echo -e "   مسیر: ${GREEN}$PORTABLE_DIR/ClinicManagement.exe${NC}"
-echo ""
-echo -e "${PURPLE}نیازی به نود یا بکند نیست. تنها فایل ClinicManagement.exe را روی ویندوز اجرا کنید.${NC}"
+echo
+echo -e "${GREEN}✓ ساخت انجام شد. Node.js و بک‌اند داخل بسته قرار گرفته‌اند.${NC}"
+echo -e "خروجی: ${YELLOW}$OUT_DIR${NC}"
+echo -e "Portable: ${GREEN}$PORTABLE_DIR/ClinicManagement.exe${NC}"
+echo -e "${PURPLE}کاربر نهایی برای اجرای بک‌اند نیازی به نصب Node.js یا اجرای دستی سرور ندارد.${NC}"
