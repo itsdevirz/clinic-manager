@@ -94,6 +94,12 @@ fi
 cp "$TARGET_EXE" "$PORTABLE_DIR/"
 cp "$TARGET_EXE" "$OUT_DIR/"
 
+# The portable executable also needs the resources that the NSIS installer normally installs.
+mkdir -p "$PORTABLE_DIR/resources"
+cp "$ROOT_DIR/dist-server/server.cjs" "$PORTABLE_DIR/resources/server.cjs"
+cp "$NODE_RUNTIME_DIR/node.exe" "$PORTABLE_DIR/resources/node.exe"
+cp "$ROOT_DIR/mongo-config.json" "$PORTABLE_DIR/resources/mongo-config.json"
+
 NSIS_DIR="$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis"
 if [ -d "$NSIS_DIR" ]; then
   find "$NSIS_DIR" -maxdepth 1 -type f -iname '*.exe' -exec cp -f {} "$OUT_DIR/" \;
