@@ -37,7 +37,48 @@ fn get_search_directories(resource_dir: Option<PathBuf>) -> Vec<PathBuf> {
 fn spawn_backend_process(resource_dir: Option<PathBuf>) {
     let search_dirs = get_search_directories(resource_dir);
 
-    // 1. Search for standalone compiled backend binary (.exe on Windows)
+    // 1. Search for bundled portable Node.js runtime (node.exe) + server.cjs
+    let node_bin_names = ["node.exe", "dist-server/node.exe", "node"];
+    let script_names = ["server.cjs", "dist-server/server.cjs"];
+
+    for base_dir in &search_dirs {
+        for node_name in &node_bin_names {
+            let node_path = base_dir.join(node_name);
+            if node_path.is_file() {
+                for script_base in &search_dirs {
+                    for script_name in &script_names {
+                        let script_path = script_base.join(script_name);
+                        if script_path.is_file() {
+                            let work_dir = script_path.parent().unwrap_or(script_base);
+                            let mut cmd = Command::new(&node_path);
+                            cmd.arg(&script_path)
+                                .current_dir(work_dir)
+                                .env("NODE_ENV", "production")
+                                .env("PORT", "3000")
+                                .stdout(std::process::Stdio::null())
+                                .stderr(std::process::Stdio::null());
+
+                            #[cfg(windows)]
+                            {
+                                use std::os::windows::process::CommandExt;
+                                const CREATE_NO_WINDOW: u32 = 0x08000000;
+                                cmd.creation_flags(CREATE_NO_WINDOW);
+                            }
+
+                            if let Ok(child) = cmd.spawn() {
+                                if let Ok(mut lock) = BACKEND_CHILD.lock() {
+                                    *lock = Some(child);
+                                }
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Search for standalone compiled backend binary (.exe on Windows)
     let binary_names = [
         "backend-server.exe",
         "server.exe",
@@ -74,17 +115,12 @@ fn spawn_backend_process(resource_dir: Option<PathBuf>) {
         }
     }
 
-    // 2. Search for bundled Node.js script (server.cjs)
-    let script_names = [
-        "server.cjs",
-        "dist-server/server.cjs",
-    ];
-
-    for base_dir in &search_dirs {
+    // 3. Fallback to system "node" in PATH if bundled node was not found
+    for script_base in &search_dirs {
         for name in &script_names {
-            let candidate = base_dir.join(name);
+            let candidate = script_base.join(name);
             if candidate.is_file() {
-                let work_dir = candidate.parent().unwrap_or(base_dir);
+                let work_dir = candidate.parent().unwrap_or(script_base);
                 let mut cmd = Command::new("node");
                 cmd.arg(&candidate)
                     .current_dir(work_dir)

@@ -58,21 +58,55 @@ export function getApiUrl(endpoint: string): string {
   return clean;
 }
 
+/**
+ * Resilient fetch wrapper with retry logic for desktop environments
+ * where the local Express background server may take 1-2 seconds to finish starting.
+ */
+async function safeApiFetch(url: string, options?: RequestInit, retries = 3, delayMs = 500): Promise<Response> {
+  let currentUrl = url;
+  let lastError: any = null;
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const res = await fetch(currentUrl, options);
+      return res;
+    } catch (err: any) {
+      lastError = err;
+      const isLocalDesktop =
+        currentUrl.includes('127.0.0.1:3000') ||
+        currentUrl.includes('localhost:3000');
+
+      if (isLocalDesktop && attempt < retries - 1) {
+        // Swap between 127.0.0.1 and localhost on alternate retries
+        if (currentUrl.includes('127.0.0.1:3000')) {
+          currentUrl = currentUrl.replace('127.0.0.1:3000', 'localhost:3000');
+        } else if (currentUrl.includes('localhost:3000')) {
+          currentUrl = currentUrl.replace('localhost:3000', '127.0.0.1:3000');
+        }
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)));
+        continue;
+      }
+      break;
+    }
+  }
+
+  throw lastError;
+}
+
 export async function fetchMySQLConfig(): Promise<MySQLConfig | null> {
   try {
-    const res = await fetch(getApiUrl('/api/db/config'));
+    const res = await safeApiFetch(getApiUrl('/api/db/config'));
     if (!res.ok) return null;
     const data = await res.json();
     return data.config || null;
-  } catch (e) {
-    console.warn('Backend API not reachable (offline/desktop mode)');
+  } catch {
     return null;
   }
 }
 
 export async function resetMySQLToDefault(): Promise<{ success: boolean; message: string; config?: MySQLConfig }> {
   try {
-    const res = await fetch(getApiUrl('/api/db/reset-default'), { method: 'POST' });
+    const res = await safeApiFetch(getApiUrl('/api/db/reset-default'), { method: 'POST' });
     return await res.json();
   } catch (e: any) {
     return { success: false, message: e.message || 'خطا در بازنشانی تنظیمات دیتابیس' };
@@ -81,7 +115,7 @@ export async function resetMySQLToDefault(): Promise<{ success: boolean; message
 
 export async function saveMySQLConfig(config: MySQLConfig): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await fetch(getApiUrl('/api/db/config'), {
+    const res = await safeApiFetch(getApiUrl('/api/db/config'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
@@ -94,7 +128,7 @@ export async function saveMySQLConfig(config: MySQLConfig): Promise<{ success: b
 
 export async function testMySQLConnection(config: MySQLConfig): Promise<DBTestResponse> {
   try {
-    const res = await fetch(getApiUrl('/api/db/test'), {
+    const res = await safeApiFetch(getApiUrl('/api/db/test'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
@@ -103,14 +137,14 @@ export async function testMySQLConnection(config: MySQLConfig): Promise<DBTestRe
   } catch (e: any) {
     return {
       success: false,
-      message: `خطا در اتصال به سرور backend: ${e.message || 'سرور در دسترس نیست'}`,
+      message: `خطا در اتصال به سرور backend (پورت ۳۰۰۰): ${e.message || 'سرور محلی در دسترس نیست'}. در صورت نیاز، فایل start-clinic.bat را یک‌بار باز کنید.`,
     };
   }
 }
 
 export async function initMySQLTables(config: MySQLConfig): Promise<DBTestResponse> {
   try {
-    const res = await fetch(getApiUrl('/api/db/init-tables'), {
+    const res = await safeApiFetch(getApiUrl('/api/db/init-tables'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
@@ -126,7 +160,7 @@ export async function initMySQLTables(config: MySQLConfig): Promise<DBTestRespon
 
 export async function loadClinicDataFromMySQL(): Promise<{ success: boolean; data?: any; message?: string }> {
   try {
-    const res = await fetch(getApiUrl('/api/db/load'));
+    const res = await safeApiFetch(getApiUrl('/api/db/load'));
     return await res.json();
   } catch (e: any) {
     return { success: false, message: e.message || 'خطا در اتصال به پایگاه داده' };
@@ -135,7 +169,7 @@ export async function loadClinicDataFromMySQL(): Promise<{ success: boolean; dat
 
 export async function syncClinicDataToMySQL(clinicData: any): Promise<DBSyncResponse> {
   try {
-    const res = await fetch(getApiUrl('/api/db/sync'), {
+    const res = await safeApiFetch(getApiUrl('/api/db/sync'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(clinicData),
@@ -148,7 +182,7 @@ export async function syncClinicDataToMySQL(clinicData: any): Promise<DBSyncResp
 
 export async function clearAllMySQLData(): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await fetch(getApiUrl('/api/db/clear'), {
+    const res = await safeApiFetch(getApiUrl('/api/db/clear'), {
       method: 'POST',
     });
     return await res.json();
@@ -164,10 +198,9 @@ export async function fetchMySQLBackup(): Promise<{
   message?: string;
 }> {
   try {
-    const res = await fetch(getApiUrl('/api/db/backup'));
+    const res = await safeApiFetch(getApiUrl('/api/db/backup'));
     return await res.json();
   } catch (e: any) {
     return { success: false, message: e.message || 'خطا در برقراری ارتباط جهت پشتیبان‌گیری دیتابیس' };
   }
 }
-

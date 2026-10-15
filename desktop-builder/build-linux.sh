@@ -160,6 +160,10 @@ if [ -d "$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis" ]
 fi
 
 # کپی ملزومات بکند برای حالت پرتابل
+if [ -f "$ROOT_DIR/dist-server/node.exe" ]; then
+    cp "$ROOT_DIR/dist-server/node.exe" "$PORTABLE_DIR/"
+    cp "$ROOT_DIR/dist-server/node.exe" "$PORTABLE_DIR/dist-server/"
+fi
 if [ -f "$ROOT_DIR/dist-server/backend-server.exe" ]; then
     cp "$ROOT_DIR/dist-server/backend-server.exe" "$PORTABLE_DIR/"
     cp "$ROOT_DIR/dist-server/backend-server.exe" "$PORTABLE_DIR/dist-server/"
@@ -174,8 +178,12 @@ chcp 65001 >nul
 title سامانه مدیریت کلینیک و مطب
 cd /d "%~dp0"
 
-:: اجرای بکند مستقل در صورت نیاز
-if exist "%~dp0backend-server.exe" (
+:: اجرای پروسه بکند در صورت فعال نبودن پورت ۳۰۰۰
+if exist "%~dp0node.exe" (
+    netstat -ano | findstr :3000 >nul || start "" /B "%~dp0node.exe" "%~dp0dist-server\server.cjs"
+) else if exist "%~dp0dist-server\node.exe" (
+    netstat -ano | findstr :3000 >nul || start "" /B "%~dp0dist-server\node.exe" "%~dp0dist-server\server.cjs"
+) else if exist "%~dp0backend-server.exe" (
     netstat -ano | findstr :3000 >nul || start "" /B "%~dp0backend-server.exe"
 ) else if exist "%~dp0dist-server\backend-server.exe" (
     netstat -ano | findstr :3000 >nul || start "" /B "%~dp0dist-server\backend-server.exe"
