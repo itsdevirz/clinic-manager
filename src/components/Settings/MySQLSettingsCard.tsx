@@ -7,9 +7,6 @@ import {
   Server,
   Key,
   FolderPlus,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Trash2,
   Eye,
   EyeOff,
   RotateCcw,
@@ -21,9 +18,6 @@ import {
   saveMySQLConfig,
   testMySQLConnection,
   initMySQLTables,
-  syncClinicDataToMySQL,
-  loadClinicDataFromMySQL,
-  clearAllMySQLData,
   resetMySQLToDefault,
 } from '../../utils/api';
 
@@ -46,8 +40,6 @@ export const MySQLSettingsCard: React.FC<MySQLSettingsCardProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [testResult, setTestResult] = useState<{
     success: boolean;
@@ -188,57 +180,7 @@ export const MySQLSettingsCard: React.FC<MySQLSettingsCardProps> = ({
     }
   };
 
-  const handleSyncToMySQL = async () => {
-    if (!config.enabled) {
-      onToast('لطفاً ابتدا تیک «استفاده از MySQL به عنوان دیتابیس اصلی» را فعال کرده و تنظیمات را ذخیره کنید.', 'error');
-      return;
-    }
-    setIsSyncing(true);
-    try {
-      const res = await syncClinicDataToMySQL(currentClinicData);
-      if (res.success) {
-        onToast(res.message, 'success');
-      } else {
-        onToast(res.message, 'error');
-      }
-    } catch (e: any) {
-      onToast(`خطا در همگام‌سازی: ${e.message}`, 'error');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
-  const handleLoadFromMySQL = async () => {
-    if (!config.enabled) {
-      onToast('اتصال به MySQL فعال نیست.', 'error');
-      return;
-    }
-    setIsLoadingData(true);
-    try {
-      const res = await loadClinicDataFromMySQL();
-      if (res.success && res.data) {
-        onDataLoadedFromMySQL(res.data);
-        onToast(`اطلاعات با موفقیت از پایگاه داده لود شد (${res.data.patients?.length || 0} بیمار، ${res.data.admissions?.length || 0} پذیرش).`, 'success');
-      } else {
-        onToast(res.message || 'خطا در بارگذاری اطلاعات از دیتابیس', 'error');
-      }
-    } catch (e: any) {
-      onToast(`خطا در لود اطلاعات: ${e.message}`, 'error');
-    } finally {
-      setIsLoadingData(false);
-    }
-  };
-
-  const handleClearAll = async () => {
-    const confirm1 = confirm('هشدار: این عملیات تمامی پرونده‌های بیماران و پذیرش‌ها را چه در مرورگر و چه در دیتابیس MySQL به صورت کامل پاکسازی می‌کند تا سیستم برای ورود اطلاعات واقعی جدید آماده باشد. آیا مطمئنید؟');
-    if (!confirm1) return;
-
-    if (config.enabled) {
-      await clearAllMySQLData().catch(() => {});
-    }
-    onClearLocalAndDBData();
-    onToast('تمامی داده‌های آزمایشی با موفقیت حذف شدند. سیستم کاملاً خام و آماده ثبت اطلاعات واقعی مطب است.', 'info');
-  };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-5">
@@ -250,25 +192,7 @@ export const MySQLSettingsCard: React.FC<MySQLSettingsCardProps> = ({
           </div>
           <div>
             <h3 className="font-bold text-slate-900 text-sm">اتصال به پایگاه داده MySQL (ذخیره پایدار و خودکار داده‌ها)</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              مشخصات پیش‌فرض MySQL محلی سیستم (پورت 3306) بارگذاری شده است؛ در صورت تغییر توسط کاربر به دیتابیس جدید متصل خواهد شد.
-            </p>
           </div>
-        </div>
-
-        {/* Status Badge */}
-        <div>
-          {config.enabled ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded-full text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>دیتابیس MySQL فعال است</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
-              <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-              <span>حالت محلی (ذخیره در مرورگر/سیستم)</span>
-            </span>
-          )}
         </div>
       </div>
 
@@ -279,7 +203,7 @@ export const MySQLSettingsCard: React.FC<MySQLSettingsCardProps> = ({
           onClick={handleResetToDefault}
           disabled={isResetting || isTesting}
           className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl font-medium text-xs transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
-          title="بازنشانی تمام فیلدها به مقادیر پیش‌فرض MySQL محلی (127.0.0.1:3306)"
+          title="بازنشانی تمام فیلدها به مقادیر پیش‌فرض"
         >
           <RotateCcw className={`w-3.5 h-3.5 text-slate-500 ${isResetting ? 'animate-spin' : ''}`} />
           <span>{isResetting ? 'در حال بازنشانی...' : 'بازنشانی به پیش‌فرض'}</span>
@@ -309,12 +233,9 @@ export const MySQLSettingsCard: React.FC<MySQLSettingsCardProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
           {/* Host */}
           <div>
-            <label className="block text-slate-600 mb-1 font-medium flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Server className="w-3.5 h-3.5 text-slate-400" />
-                <span>آدرس سرور دیتابیس (Host / IP):</span>
-              </span>
-              <span className="text-[10px] text-slate-400 font-mono">پیش‌فرض: 127.0.0.1</span>
+            <label className="block text-slate-600 mb-1 font-medium flex items-center gap-1.5">
+              <Server className="w-3.5 h-3.5 text-slate-400" />
+              <span>آدرس سرور دیتابیس (Host / IP):</span>
             </label>
             <input
               type="text"
@@ -329,9 +250,8 @@ export const MySQLSettingsCard: React.FC<MySQLSettingsCardProps> = ({
 
           {/* Port */}
           <div>
-            <label className="block text-slate-600 mb-1 font-medium flex items-center justify-between">
+            <label className="block text-slate-600 mb-1 font-medium">
               <span>پورت MySQL (Port):</span>
-              <span className="text-[10px] text-slate-400 font-mono">پیش‌فرض: 3306</span>
             </label>
             <input
               type="number"
@@ -346,12 +266,9 @@ export const MySQLSettingsCard: React.FC<MySQLSettingsCardProps> = ({
 
           {/* Database Name */}
           <div>
-            <label className="block text-slate-600 mb-1 font-medium flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Database className="w-3.5 h-3.5 text-slate-400" />
-                <span>نام پایگاه داده (Database):</span>
-              </span>
-              <span className="text-[10px] text-slate-400 font-mono">پیش‌فرض: clinic_db</span>
+            <label className="block text-slate-600 mb-1 font-medium flex items-center gap-1.5">
+              <Database className="w-3.5 h-3.5 text-slate-400" />
+              <span>نام پایگاه داده (Database):</span>
             </label>
             <input
               type="text"
@@ -366,9 +283,8 @@ export const MySQLSettingsCard: React.FC<MySQLSettingsCardProps> = ({
 
           {/* Username */}
           <div>
-            <label className="block text-slate-600 mb-1 font-medium flex items-center justify-between">
+            <label className="block text-slate-600 mb-1 font-medium">
               <span>نام کاربری (Username):</span>
-              <span className="text-[10px] text-slate-400 font-mono">پیش‌فرض: root</span>
             </label>
             <input
               type="text"
@@ -383,12 +299,9 @@ export const MySQLSettingsCard: React.FC<MySQLSettingsCardProps> = ({
 
           {/* Password */}
           <div>
-            <label className="block text-slate-600 mb-1 font-medium flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-slate-400" />
-                <span>رمز عبور (Password):</span>
-              </span>
-              <span className="text-[10px] text-slate-400 font-mono">پیش‌فرض: بدون رمز</span>
+            <label className="block text-slate-600 mb-1 font-medium flex items-center gap-1.5">
+              <Key className="w-3.5 h-3.5 text-slate-400" />
+              <span>رمز عبور (Password):</span>
             </label>
             <div className="relative">
               <input
@@ -467,68 +380,6 @@ export const MySQLSettingsCard: React.FC<MySQLSettingsCardProps> = ({
           </button>
         </div>
       </form>
-
-      {/* Data Synchronization & Migration Controls */}
-      <div className="pt-3 border-t border-slate-100">
-        <h4 className="text-xs font-bold text-slate-800 mb-2.5">عملیات انتقال و همگام‌سازی داده‌ها با دیتابیس فعال</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Sync to MySQL */}
-          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/70 flex flex-col justify-between space-y-2.5">
-            <div>
-              <span className="font-bold text-slate-800 text-xs block">ارسال به دیتابیس (Sync Up)</span>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                ذخیره کلیه اطلاعات فعلی ثبت‌شده در دیتابیس متصل
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleSyncToMySQL}
-              disabled={isSyncing || !config.enabled}
-              className="flex items-center justify-center gap-1.5 w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              <ArrowUpFromLine className={`w-3.5 h-3.5 text-blue-600 ${isSyncing ? 'animate-bounce' : ''}`} />
-              <span>{isSyncing ? 'در حال همگام‌سازی...' : 'ارسال اطلاعات به دیتابیس'}</span>
-            </button>
-          </div>
-
-          {/* Load from MySQL */}
-          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/70 flex flex-col justify-between space-y-2.5">
-            <div>
-              <span className="font-bold text-slate-800 text-xs block">دریافت از دیتابیس (Load Down)</span>
-              <p className="text-slate-500 text-[11px] mt-0.5">
-                بارگذاری کامل پرونده‌ها و پذیرش‌ها از دیتابیس متصل
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleLoadFromMySQL}
-              disabled={isLoadingData || !config.enabled}
-              className="flex items-center justify-center gap-1.5 w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              <ArrowDownToLine className={`w-3.5 h-3.5 text-emerald-600 ${isLoadingData ? 'animate-bounce' : ''}`} />
-              <span>{isLoadingData ? 'در حال دریافت...' : 'بارگذاری از دیتابیس'}</span>
-            </button>
-          </div>
-
-          {/* Clear All Mock & Real Data */}
-          <div className="p-3.5 bg-rose-50/50 rounded-xl border border-rose-200/60 flex flex-col justify-between space-y-2.5">
-            <div>
-              <span className="font-bold text-rose-900 text-xs block">پاکسازی کامل و شروع واقعی</span>
-              <p className="text-rose-700 text-[11px] mt-0.5">
-                حذف کلیه پرونده‌های نمونه، پذیرش‌ها و صفر کردن سیستم
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="flex items-center justify-center gap-1.5 w-full py-2 bg-white hover:bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-lg transition-colors cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-              <span>پاکسازی همه داده‌های آزمایشی</span>
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
