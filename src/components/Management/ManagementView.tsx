@@ -59,6 +59,7 @@ import { PersianDatePicker } from '../Common/PersianDatePicker';
 import { PersianYearPicker } from '../Common/PersianYearPicker';
 import { ServicePatientAnalytics } from './ServicePatientAnalytics';
 import { ReceivablesManager } from './ReceivablesManager';
+import { AdminToolsPanel } from './AdminToolsPanel';
 import { Patient } from '../../types';
 
 export const SERVICE_CATEGORIES: { value: ServiceCategory; label: string }[] = [
@@ -101,6 +102,14 @@ interface ManagementViewProps {
   onUpdateAdmission?: (updated: Admission) => void;
   patients?: Patient[];
   onOpenPatientDossier?: (patientId: string) => void;
+  clinicData: any;
+  onUpdateSettings: (settings: ClinicSettings) => void;
+  onExportData: () => void;
+  onImportData: (json: string) => boolean;
+  onDataLoadedFromMongo: (data: any) => void;
+  onClearLocalAndDBData: () => void;
+  onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  onRefreshAppConnection: () => Promise<boolean>;
 }
 
 export const ManagementView: React.FC<ManagementViewProps> = ({
@@ -121,6 +130,14 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
   onUpdateAdmission,
   patients = [],
   onOpenPatientDossier,
+  clinicData,
+  onUpdateSettings,
+  onExportData,
+  onImportData,
+  onDataLoadedFromMongo,
+  onClearLocalAndDBData,
+  onToast,
+  onRefreshAppConnection,
 }) => {
   const [editingAdmission, setEditingAdmission] = useState<Admission | null>(null);
   // PIN Verification State
@@ -135,7 +152,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
     e.preventDefault();
     if (isLockedOut) return;
 
-    if (pinInput.trim() === settings.adminPin || pinInput.trim() === '1234') {
+    if (pinInput.trim() === settings.adminPin) {
       onUnlockSuccess();
       setPinInput('');
       setPinError('');
@@ -171,7 +188,8 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
     | 'services'
     | 'operators'
     | 'shareholders'
-    | 'consumables';
+    | 'consumables'
+    | 'admin_tools';
   const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>('financial');
 
   // Count of active receivables (cheques + unpaid invoice debts)
@@ -1367,6 +1385,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
           { id: 'operators' as AdminTab, label: 'مدیریت و کارکرد اپراتورها' },
           { id: 'shareholders' as AdminTab, label: 'محاسبه سهم سهامداران' },
           { id: 'consumables' as AdminTab, label: 'مدیریت مواد مصرفی' },
+          { id: 'admin_tools' as AdminTab, label: '🔐 امنیت، پشتیبان و دیتابیس' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -2917,6 +2936,20 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
             </table>
           </div>
         </div>
+      )}
+
+      {activeAdminTab === 'admin_tools' && (
+        <AdminToolsPanel
+          settings={settings}
+          clinicData={clinicData}
+          onUpdateSettings={onUpdateSettings}
+          onExportData={onExportData}
+          onImportData={onImportData}
+          onDataLoadedFromMongo={onDataLoadedFromMongo}
+          onClearLocalAndDBData={onClearLocalAndDBData}
+          onToast={onToast}
+          onRefreshAppConnection={onRefreshAppConnection}
+        />
       )}
 
       {/* Edit Admission Modal */}
