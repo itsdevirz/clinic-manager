@@ -92,13 +92,16 @@ fn spawn_backend_process(resource_dir: Option<PathBuf>) {
 }
 
 fn kill_backend_process() {
-    // Terminate only the backend child spawned by this application.
-    // Do not wait synchronously or invoke taskkill by image name: both can
-    // delay window closing, and taskkill could terminate unrelated Node apps.
-    if let Ok(mut lock) = BACKEND_CHILD.lock() {
-        if let Some(mut child) = lock.take() {
-            let _ = child.kill();
-        }
+    // Close the UI immediately; terminate and reap the owned backend on a
+    // background thread so process shutdown cannot block the window.
+    let child = BACKEND_CHILD.lock().ok().and_then(|mut lock| lock.take());
+    if let Some(mut child) = child {
+        let _ = std::thread::Builder::new()
+            .name("clinic-backend-shutdown".into())
+            .spawn(move || {
+                let _ = child.kill();
+                let _ = child.wait();
+            });
     }
 }
 
