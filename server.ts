@@ -174,7 +174,7 @@ async function getMongoClient(config: MongoConfig): Promise<{ client: MongoClien
 }
 
 async function ensureCollectionsExist(db: Db) {
-  const collections = ['patients', 'services', 'operators', 'admissions', 'followups', 'settings'];
+  const collections = ['patients', 'services', 'operators', 'admissions', 'followups', 'settings', 'consumables', 'shareholders'];
   const existingCols = await db.listCollections().toArray();
   const existingNames = existingCols.map((c) => c.name);
 
@@ -191,6 +191,8 @@ async function ensureCollectionsExist(db: Db) {
   await db.collection('admissions').createIndex({ id: 1 }, { unique: true }).catch(() => {});
   await db.collection('followups').createIndex({ id: 1 }, { unique: true }).catch(() => {});
   await db.collection('settings').createIndex({ id: 1 }, { unique: true }).catch(() => {});
+  await db.collection('consumables').createIndex({ name: 1 }, { unique: true }).catch(() => {});
+  await db.collection('shareholders').createIndex({ id: 1 }, { unique: true }).catch(() => {});
 }
 
 // API Routes
@@ -300,6 +302,10 @@ app.get('/api/db/load', async (req: Request, res: Response) => {
 
     const followUpsDocs = await mongo.db.collection('followups').find({}).toArray();
     const followUps = followUpsDocs.map(cleanDoc);
+    const consumablesDocs = await mongo.db.collection('consumables').find({}).toArray();
+    const consumables = consumablesDocs.map(cleanDoc);
+    const shareholdersDocs = await mongo.db.collection('shareholders').find({}).toArray();
+    const shareholders = shareholdersDocs.map(cleanDoc);
 
     const settingsDoc = await mongo.db.collection('settings').findOne({ id: 'main_settings' });
     const settings = settingsDoc ? cleanDoc(settingsDoc).data || cleanDoc(settingsDoc) : null;
@@ -312,6 +318,8 @@ app.get('/api/db/load', async (req: Request, res: Response) => {
         operators,
         admissions,
         followUps,
+        consumables,
+        shareholders,
         settings,
       },
     });
@@ -326,7 +334,7 @@ app.get('/api/db/load', async (req: Request, res: Response) => {
 
 app.post('/api/db/sync', async (req: Request, res: Response) => {
   const config = readMongoConfig();
-  const { patients, services, operators, admissions, followUps, settings } = req.body || {};
+  const { patients, services, operators, admissions, followUps, consumables, shareholders, settings } = req.body || {};
   let client: MongoClient | null = null;
 
   try {
@@ -369,6 +377,20 @@ app.post('/api/db/sync', async (req: Request, res: Response) => {
       }
     }
 
+    if (Array.isArray(consumables)) {
+      for (const item of consumables) {
+        if (!item.name) continue;
+        await mongo.db.collection('consumables').replaceOne({ name: item.name }, item, { upsert: true });
+      }
+    }
+
+    if (Array.isArray(shareholders)) {
+      for (const item of shareholders) {
+        if (!item.id) continue;
+        await mongo.db.collection('shareholders').replaceOne({ id: item.id }, item, { upsert: true });
+      }
+    }
+
     if (settings) {
       await mongo.db.collection('settings').replaceOne(
         { id: 'main_settings' },
@@ -387,6 +409,60 @@ app.post('/api/db/sync', async (req: Request, res: Response) => {
     if (client) {
       await client.close().catch(() => {});
     }
+  }
+});
+
+app.post('/api/db/restore', async (req: Request, res: Response) => {
+  const payload = req.body || {};
+  const client: MongoClient | null = null;
+  let activeClient: MongoClient | null = client;
+  try {
+    const mongo = await getMongoClient(readMongoConfig());
+    activeClient = mongo.client;
+    await ensureCollectionsExist(mongo.db);
+
+    const collections: Record<string, any[]> = {
+      patients: payload.patients,
+      services: payload.services,
+      operators: payload.operators,
+      admissions: payload.admissions,
+      followups: payload.followUps,
+      consumables: payload.consumables,
+      shareholders: payload.shareholders,
+    };
+
+    for (const [name, items] of Object.entries(collections)) {
+      if (!Array.isArray(items)) {
+        res.status(400).json({ success: false, message: `فهرست ${name} در فایل پشتیبان معتبر نیست.` });
+        return;
+      }
+    }
+
+    for (const [name, items] of Object.entries(collections)) {
+      const collection = mongo.db.collection(name);
+      await collection.deleteMany({});
+      if (items.length) {
+        const cleanItems = items.map((item) => {
+          const { _id, ...rest } = item || {};
+          return rest;
+        });
+        await collection.insertMany(cleanItems, { ordered: true });
+      }
+    }
+
+    if (payload.settings && typeof payload.settings === 'object') {
+      await mongo.db.collection('settings').replaceOne(
+        { id: 'main_settings' },
+        { id: 'main_settings', data: payload.settings },
+        { upsert: true }
+      );
+    }
+
+    res.json({ success: true, message: 'اطلاعات پشتیبان در MongoDB بازیابی شد.' });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: `خطا در بازیابی پشتیبان در MongoDB: ${e.message}` });
+  } finally {
+    if (activeClient) await activeClient.close().catch(() => {});
   }
 });
 
