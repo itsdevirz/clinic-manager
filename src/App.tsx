@@ -22,7 +22,8 @@ import {
   fetchMongoConfig,
   testMongoConnection,
   loadClinicDataFromMongo,
-  syncClinicDataToMongo
+  syncClinicDataToMongo,
+  restoreClinicDataToMongo
 } from './utils/api';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -52,6 +53,7 @@ export default function App() {
   // Database Connection & Realtime Auto-Sync State
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isRestoringBackup, setIsRestoringBackup] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [dbWarningDismissed, setDbWarningDismissed] = useState<boolean>(false);
 
@@ -142,7 +144,7 @@ export default function App() {
 
   // Realtime auto-sync to MongoDB whenever clinicData changes
   useEffect(() => {
-    if (isMongoEnabled && dbStatus === 'connected') {
+    if (!isRestoringBackup && isMongoEnabled && dbStatus === 'connected') {
       setIsSyncing(true);
       const timer = setTimeout(async () => {
         try {
@@ -165,7 +167,7 @@ export default function App() {
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [clinicData, isMongoEnabled, dbStatus]);
+  }, [clinicData, isMongoEnabled, dbStatus, isRestoringBackup]);
 
   // Global Ctrl+K shortcut for search
   useEffect(() => {
@@ -263,18 +265,31 @@ export default function App() {
     addToast('فایل پشتیبان با موفقیت دانلود شد.');
   };
 
-  const handleImportData = (jsonStr: string) => {
+  const handleImportData = async (jsonStr: string): Promise<boolean> => {
+    setIsRestoringBackup(true);
     try {
       const ok = importClinicDataFromJSON(jsonStr);
-      if (ok) {
-        setClinicData(loadAllClinicData());
-        addToast('اطلاعات با موفقیت بازیابی شد.');
-        return true;
+      if (!ok) return false;
+
+      const restoredData = loadAllClinicData();
+      setClinicData(restoredData);
+
+      if (isMongoEnabled && dbStatus === 'connected') {
+        const restoreResult = await restoreClinicDataToMongo(restoredData);
+        if (!restoreResult.success) {
+          addToast(`اطلاعات در برنامه بازیابی شد، اما بازیابی MongoDB ناموفق بود: ${restoreResult.message}`, 'error');
+        } else {
+          addToast('اطلاعات پشتیبان در برنامه و MongoDB بازیابی شد.');
+        }
+      } else {
+        addToast('اطلاعات پشتیبان در برنامه بازیابی شد. برای بازیابی دیتابیس، ابتدا اتصال MongoDB را برقرار کنید.', 'info');
       }
+      return true;
+    } catch {
+      addToast('خطا در خواندن یا بازیابی فایل پشتیبان.', 'error');
       return false;
-    } catch (e) {
-      addToast('خطا در خواندن فایل پشتیبان.', 'error');
-      return false;
+    } finally {
+      setIsRestoringBackup(false);
     }
   };
 
@@ -526,33 +541,18 @@ export default function App() {
               onUpdateAdmission={handleUpdateAdmission}
               patients={clinicData.patients}
               onOpenPatientDossier={handleOpenPatientDossier}
-            />
-          )}
-
-          {currentTab === 'settings' && (
-            <SettingsView
-              settings={clinicData.settings}
               clinicData={clinicData}
               onUpdateSettings={(settings) => {
                 setClinicData((prev) => ({ ...prev, settings }));
-                if (settings.mongoConfig?.enabled !== undefined) {
-                  setIsMongoEnabled(settings.mongoConfig.enabled);
-                }
+                if (settings.mongoConfig?.enabled !== undefined) setIsMongoEnabled(settings.mongoConfig.enabled);
                 addToast('تنظیمات با موفقیت ذخیره شد.');
               }}
               onExportData={handleExportData}
               onImportData={handleImportData}
-              onResetDemoData={handleResetDemoData}
               onDataLoadedFromMongo={(newData) => {
                 setClinicData((prev) => ({ ...prev, ...newData }));
                 setIsMongoEnabled(true);
                 setDbStatus('connected');
-                const nowStr = new Date().toLocaleTimeString('fa-IR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                });
-                setLastSyncTime(nowStr);
               }}
               onClearLocalAndDBData={() => {
                 const fresh = clearAllMockAndRealData();
@@ -560,6 +560,16 @@ export default function App() {
               }}
               onToast={addToast}
               onRefreshAppConnection={() => checkDBConnection(false)}
+            />
+          )}
+
+          {currentTab === 'settings' && (
+            <SettingsView
+              settings={clinicData.settings}
+              onUpdateSettings={(settings) => {
+                setClinicData((prev) => ({ ...prev, settings }));
+                addToast('مشخصات مطب با موفقیت ذخیره شد.');
+              }}
             />
           )}
         </main>
