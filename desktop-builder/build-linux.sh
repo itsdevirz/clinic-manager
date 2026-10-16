@@ -84,15 +84,40 @@ npm run tauri:build:win
 echo -e "${YELLOW}[6/6] مرتب‌سازی خروجی‌ها... ${NC}"
 OUT_DIR="$ROOT_DIR/desktop-output/windows"
 PORTABLE_DIR="$OUT_DIR/ClinicManagement-Portable"
-TARGET_EXE="$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release/ClinicManagement.exe"
-mkdir -p "$PORTABLE_DIR"
+RELEASE_DIR="$ROOT_DIR/src-tauri/target/x86_64-pc-windows-gnu/release"
+TARGET_EXE="$RELEASE_DIR/ClinicManagement.exe"
+
+mkdir -p "$PORTABLE_DIR" "$OUT_DIR"
+
+# Locate the actual executable rather than assuming Cargo/Tauri's output name.
+if [ ! -s "$TARGET_EXE" ]; then
+  for candidate in \
+    "$RELEASE_DIR/clinic-management-app.exe" \
+    "$RELEASE_DIR/clinic_management_app.exe"; do
+    if [ -s "$candidate" ]; then
+      TARGET_EXE="$candidate"
+      break
+    fi
+  done
+fi
 
 if [ ! -s "$TARGET_EXE" ]; then
-  echo -e "${RED}فایل ClinicManagement.exe ساخته نشد.${NC}"
+  TARGET_EXE="$(find "$RELEASE_DIR" -maxdepth 1 -type f -iname '*.exe' -size +100k -print -quit 2>/dev/null || true)"
+fi
+
+if [ -z "$TARGET_EXE" ] || [ ! -s "$TARGET_EXE" ]; then
+  echo -e "${RED}فایل اجرایی ویندوز در مسیر خروجی پیدا نشد.${NC}"
+  echo -e "${YELLOW}محتویات مسیر release:${NC}"
+  find "$RELEASE_DIR" -maxdepth 2 -type f -printf '%p (%s bytes)\\n' 2>/dev/null | head -80 || true
+  echo -e "${YELLOW}آخرین خروجی Cargo/Tauri برای تشخیص خطا:${NC}"
+  echo "برای جزئیات بیشتر این دستور را اجرا کن:"
+  echo "  npm run tauri:build:win -- --verbose"
   exit 1
 fi
-cp "$TARGET_EXE" "$PORTABLE_DIR/"
-cp "$TARGET_EXE" "$OUT_DIR/"
+
+echo -e "${GREEN}✓ فایل اجرایی پیدا شد: $TARGET_EXE${NC}"
+cp "$TARGET_EXE" "$PORTABLE_DIR/ClinicManagement.exe"
+cp "$TARGET_EXE" "$OUT_DIR/ClinicManagement.exe"
 
 # The portable executable also needs the resources that the NSIS installer normally installs.
 mkdir -p "$PORTABLE_DIR/resources"
