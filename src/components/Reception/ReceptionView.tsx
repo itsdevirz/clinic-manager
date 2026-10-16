@@ -57,14 +57,20 @@ interface ReceptionViewProps {
 }
 
 export const ReceptionView: React.FC<ReceptionViewProps> = ({
-  patients,
-  services,
-  operators,
-  consumablesList,
+  patients: incomingPatients,
+  services: incomingServices,
+  operators: incomingOperators,
+  consumablesList: incomingConsumablesList,
   preselectedPatientId,
   onAdmissionCreated,
   onOpenPatientDossier,
 }) => {
+  // Database data can be temporarily incomplete while the packaged app initializes.
+  // Normalize collection props so the reception screen never crashes on missing arrays.
+  const patients = Array.isArray(incomingPatients) ? incomingPatients : [];
+  const services = Array.isArray(incomingServices) ? incomingServices : [];
+  const operators = Array.isArray(incomingOperators) ? incomingOperators : [];
+  const consumablesList = Array.isArray(incomingConsumablesList) ? incomingConsumablesList : [];
   const today = getTodayPersianDate();
 
   // Step 1: Patient Selection (Patients are created only in Patient Dossier)
