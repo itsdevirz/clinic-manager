@@ -105,7 +105,7 @@ interface ManagementViewProps {
   clinicData: any;
   onUpdateSettings: (settings: ClinicSettings) => void;
   onExportData: () => void;
-  onImportData: (json: string) => boolean;
+  onImportData: (json: string) => boolean | Promise<boolean>;
   onDataLoadedFromMongo: (data: any) => void;
   onClearLocalAndDBData: () => void;
   onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
