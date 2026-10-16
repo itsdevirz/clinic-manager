@@ -133,15 +133,66 @@ export function resetClinicDataToDemo() {
 }
 
 export function exportClinicDataAsJSON(data: any): string {
-  return JSON.stringify(data, null, 2);
+  const settings = { ...(data.settings || {}) };
+  delete settings.adminPin;
+  delete settings.mongoConfig;
+
+  return JSON.stringify({
+    app: 'clinic-manager',
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    data: {
+      patients: Array.isArray(data.patients) ? data.patients : [],
+      services: Array.isArray(data.services) ? data.services : [],
+      operators: Array.isArray(data.operators) ? data.operators : [],
+      consumables: Array.isArray(data.consumables) ? data.consumables : [],
+      shareholders: Array.isArray(data.shareholders) ? data.shareholders : [],
+      settings,
+      admissions: Array.isArray(data.admissions) ? data.admissions : [],
+      followUps: Array.isArray(data.followUps) ? data.followUps : [],
+    },
+  }, null, 2);
+}
+
+export function parseClinicDataFromJSON(jsonString: string) {
+  try {
+    const parsed = JSON.parse(jsonString);
+    const payload = parsed?.app === 'clinic-manager' && parsed?.data
+      ? parsed.data
+      : parsed;
+
+    if (!payload || !Array.isArray(payload.patients) || !Array.isArray(payload.admissions)) {
+      return null;
+    }
+
+    const current = loadAllClinicData();
+    const importedSettings = payload.settings && typeof payload.settings === 'object'
+      ? payload.settings
+      : {};
+
+    return {
+      patients: payload.patients,
+      services: Array.isArray(payload.services) ? payload.services : current.services,
+      operators: Array.isArray(payload.operators) ? payload.operators : current.operators,
+      consumables: Array.isArray(payload.consumables) ? payload.consumables : current.consumables,
+      shareholders: Array.isArray(payload.shareholders) ? payload.shareholders : current.shareholders,
+      admissions: payload.admissions,
+      followUps: Array.isArray(payload.followUps) ? payload.followUps : [],
+      settings: {
+        ...current.settings,
+        ...importedSettings,
+        adminPin: current.settings.adminPin,
+        mongoConfig: current.settings.mongoConfig,
+      },
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function importClinicDataFromJSON(jsonString: string) {
-  const parsed = JSON.parse(jsonString);
-  if (Array.isArray(parsed.patients) && Array.isArray(parsed.admissions)) {
-    saveAllClinicData(parsed);
-    return true;
-  }
-  return false;
+  const parsed = parseClinicDataFromJSON(jsonString);
+  if (!parsed) return false;
+  saveAllClinicData(parsed);
+  return true;
 }
-
