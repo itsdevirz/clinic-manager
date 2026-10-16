@@ -5,45 +5,18 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { ClinicSettings } from '../../types';
-import { MongoSettingsCard } from './MongoSettingsCard';
 
 interface SettingsViewProps {
   settings: ClinicSettings;
-  clinicData: any;
   onUpdateSettings: (settings: ClinicSettings) => void;
-  onExportData: () => void;
-  onImportData: (jsonStr: string) => boolean;
-  onResetDemoData: () => void;
-  onDataLoadedFromMongo: (data: any) => void;
-  onClearLocalAndDBData: () => void;
-  onToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
-  onRefreshAppConnection?: () => Promise<boolean>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   settings,
-  clinicData,
   onUpdateSettings,
-  onDataLoadedFromMongo,
-  onClearLocalAndDBData,
-  onToast,
-  onRefreshAppConnection,
 }) => {
   const [formData, setFormData] = useState<ClinicSettings>({ ...settings });
   const [saveSuccess, setSaveSuccess] = useState(false);
-
-  // PIN change
-  const [currentPin, setCurrentPin] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [pinMessage, setPinMessage] = useState<{ text: string; error: boolean } | null>(null);
-  const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
-
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCmd(id);
-    setTimeout(() => setCopiedCmd(null), 2000);
-  };
 
   const handleSaveClinicInfo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,35 +24,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
-
-  const handleChangePin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentPin !== settings.adminPin && currentPin !== '1234') {
-      setPinMessage({ text: 'رمز عبور فعلی نادرست است.', error: true });
-      return;
-    }
-    if (newPin.length < 4) {
-      setPinMessage({ text: 'رمز عبور جدید باید حداقل ۴ رقم باشد.', error: true });
-      return;
-    }
-    if (newPin !== confirmPin) {
-      setPinMessage({ text: 'تکرار رمز عبور جدید مطابقت ندارد.', error: true });
-      return;
-    }
-
-    onUpdateSettings({
-      ...settings,
-      adminPin: newPin,
-    });
-    setFormData((prev) => ({ ...prev, adminPin: newPin }));
-    setCurrentPin('');
-    setNewPin('');
-    setConfirmPin('');
-    setPinMessage({ text: 'رمز عبور مدیریت با موفقیت تغییر یافت.', error: false });
-    setTimeout(() => setPinMessage(null), 3000);
-  };
-
-
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -163,14 +107,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </form>
 
-      {/* 2. MongoDB Database Connection & Settings */}
-      <MongoSettingsCard
-        currentClinicData={clinicData}
-        onDataLoadedFromMongo={onDataLoadedFromMongo}
-        onClearLocalAndDBData={onClearLocalAndDBData}
-        onToast={onToast}
-        onRefreshAppConnection={onRefreshAppConnection}
-      />
+
 
 
 
