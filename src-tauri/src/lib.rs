@@ -92,20 +92,13 @@ fn spawn_backend_process(resource_dir: Option<PathBuf>) {
 }
 
 fn kill_backend_process() {
+    // Terminate only the backend child spawned by this application.
+    // Do not wait synchronously or invoke taskkill by image name: both can
+    // delay window closing, and taskkill could terminate unrelated Node apps.
     if let Ok(mut lock) = BACKEND_CHILD.lock() {
         if let Some(mut child) = lock.take() {
             let _ = child.kill();
-            let _ = child.wait();
         }
-    }
-    #[cfg(windows)]
-    {
-        let _ = Command::new("taskkill")
-            .args(&["/F", "/IM", "backend-server.exe"])
-            .output();
-        let _ = Command::new("taskkill")
-            .args(&["/F", "/IM", "node.exe"])
-            .output();
     }
 }
 
