@@ -195,6 +195,21 @@ export async function syncClinicDataToMongo(clinicData: any): Promise<DBSyncResp
   return { success: false, message: 'خطا در برقراری ارتباط با MongoDB' };
 }
 
+export async function restoreClinicDataToMongo(clinicData: any): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await safeApiFetch(getApiUrl('/api/db/restore'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(clinicData),
+    });
+    const result = await res.json();
+    if (res.ok) return result;
+    return { success: false, message: result.message || 'بازیابی پشتیبان در MongoDB ناموفق بود.' };
+  } catch (e: any) {
+    return { success: false, message: e?.message || 'ارتباط با سرویس بک‌اند برقرار نشد.' };
+  }
+}
+
 export async function clearAllMongoData(): Promise<{ success: boolean; message: string }> {
   try {
     const res = await safeApiFetch(getApiUrl('/api/db/clear'), { method: 'POST' });
