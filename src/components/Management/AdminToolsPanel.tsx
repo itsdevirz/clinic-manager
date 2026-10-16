@@ -86,9 +86,7 @@ export const AdminToolsPanel: React.FC<AdminToolsPanelProps> = ({
     try {
       const json = await file.text();
       const ok = await onImportData(json);
-      if (ok) {
-        onToast('بازیابی اطلاعات انجام شد. اگر MongoDB فعال باشد، همگام‌سازی اطلاعات نیز انجام می‌شود.');
-      } else {
+      if (!ok) {
         onToast('فایل انتخاب‌شده معتبر نیست یا ساختار پشتیبان پشتیبانی نمی‌شود.', 'error');
       }
     } catch {
