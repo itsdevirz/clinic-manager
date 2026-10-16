@@ -483,6 +483,24 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setPaymentNotes('');
   };
 
+  if (!selectedService) {
+    return (
+      <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-right" dir="rtl">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 rounded-xl bg-amber-100 p-2 text-amber-700">
+            <AlertCircle className="h-5 w-5" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-base font-bold text-amber-950">خدماتی برای پذیرش ثبت نشده است</h2>
+            <p className="text-sm leading-7 text-amber-900">
+              فهرست خدمات خالی است یا هنوز بارگذاری نشده. برای ادامه، بخش مدیریت مطب را باز کنید و خدمات را بررسی کنید؛ سپس دوباره وارد پذیرش شوید.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       {/* 1. Header Prompt & Patient Section */}
