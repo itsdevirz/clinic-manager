@@ -17,7 +17,7 @@ interface AdminToolsPanelProps {
   clinicData: any;
   onUpdateSettings: (settings: ClinicSettings) => void;
   onExportData: () => void;
-  onImportData: (json: string) => boolean;
+  onImportData: (json: string) => boolean | Promise<boolean>;
   onDataLoadedFromMongo: (data: any) => void;
   onClearLocalAndDBData: () => void;
   onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -85,7 +85,7 @@ export const AdminToolsPanel: React.FC<AdminToolsPanelProps> = ({
     setIsImporting(true);
     try {
       const json = await file.text();
-      const ok = onImportData(json);
+      const ok = await onImportData(json);
       if (ok) {
         onToast('بازیابی اطلاعات انجام شد. اگر MongoDB فعال باشد، همگام‌سازی اطلاعات نیز انجام می‌شود.');
       } else {
