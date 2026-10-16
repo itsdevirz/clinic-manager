@@ -414,8 +414,7 @@ app.post('/api/db/sync', async (req: Request, res: Response) => {
 
 app.post('/api/db/restore', async (req: Request, res: Response) => {
   const payload = req.body || {};
-  const client: MongoClient | null = null;
-  let activeClient: MongoClient | null = client;
+  let activeClient: MongoClient | null = null;
   try {
     const mongo = await getMongoClient(readMongoConfig());
     activeClient = mongo.client;
