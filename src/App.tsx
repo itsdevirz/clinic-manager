@@ -142,6 +142,12 @@ export default function App() {
     checkDBConnection(true);
   }, [checkDBConnection]);
 
+  // Persist the current clinic state locally so management settings (including the admin PIN)
+  // remain available after restarting the desktop app, even when MongoDB is temporarily offline.
+  useEffect(() => {
+    saveAllClinicData(clinicData);
+  }, [clinicData]);
+
   // Realtime auto-sync to MongoDB whenever clinicData changes
   useEffect(() => {
     if (!isRestoringBackup && isMongoEnabled && dbStatus === 'connected') {
