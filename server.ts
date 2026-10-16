@@ -506,7 +506,7 @@ async function setupApp() {
     }
   }
 
-  app.listen(PORT, () => {
+  app.listen(PORT, '127.0.0.1', () => {
     console.log(`[ClinicMongoBackend] Express + MongoDB Server running on http://127.0.0.1:${PORT}`);
   });
 }
