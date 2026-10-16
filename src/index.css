@@ -192,15 +192,49 @@ body, button, input, select, textarea, optgroup, kbd, code {
   .receipt-a4-sheet {
     box-shadow: none !important;
     border: 1.5px solid #1e293b !important;
-    border-radius: 4px !important;
+    border-radius: 0 !important;
     margin: 0 auto !important;
     width: 100% !important;
     max-width: 100% !important;
-    padding: 6mm 7mm !important;
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 3mm 4mm !important;
     background: #ffffff !important;
-    page-break-inside: avoid !important;
-    page-break-after: avoid !important;
+    page-break-inside: auto !important;
+    page-break-after: auto !important;
     box-sizing: border-box !important;
+    font-size: 9pt !important;
+  }
+
+  .receipt-a4-sheet > div {
+    padding: 3mm !important;
+    gap: 2mm !important;
+  }
+
+  .receipt-a4-sheet table {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  .receipt-a4-sheet tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .receipt-a4-sheet thead {
+    display: table-header-group !important;
+  }
+
+  .receipt-a4-sheet tfoot {
+    display: table-footer-group !important;
+  }
+
+  .receipt-a4-sheet h1,
+  .receipt-a4-sheet h2,
+  .receipt-a4-sheet h3,
+  .receipt-a4-sheet p {
+    margin-top: 1mm !important;
+    margin-bottom: 1mm !important;
   }
 
   /* Strict table border enforcement for all printers */
@@ -212,6 +246,7 @@ body, button, input, select, textarea, optgroup, kbd, code {
   .receipt-print-table th,
   .receipt-print-table td {
     border: 1px solid #475569 !important;
+    padding: 1.2mm 1.5mm !important;
   }
 }
 
