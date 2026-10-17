@@ -1,6 +1,5 @@
 import React, { useRef, useState } from 'react';
 import {
-  Database,
   Download,
   Upload,
   ShieldCheck,
@@ -10,7 +9,6 @@ import {
   FileJson,
 } from 'lucide-react';
 import { ClinicSettings } from '../../types';
-import { MongoSettingsCard } from '../Settings/MongoSettingsCard';
 
 interface AdminToolsPanelProps {
   settings: ClinicSettings;
@@ -18,10 +16,7 @@ interface AdminToolsPanelProps {
   onUpdateSettings: (settings: ClinicSettings) => void;
   onExportData: () => void;
   onImportData: (json: string) => boolean | Promise<boolean>;
-  onDataLoadedFromMongo: (data: any) => void;
-  onClearLocalAndDBData: () => void;
   onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
-  onRefreshAppConnection: () => Promise<boolean>;
 }
 
 export const AdminToolsPanel: React.FC<AdminToolsPanelProps> = ({
@@ -30,10 +25,7 @@ export const AdminToolsPanel: React.FC<AdminToolsPanelProps> = ({
   onUpdateSettings,
   onExportData,
   onImportData,
-  onDataLoadedFromMongo,
-  onClearLocalAndDBData,
   onToast,
-  onRefreshAppConnection,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentPin, setCurrentPin] = useState('');
@@ -166,22 +158,7 @@ export const AdminToolsPanel: React.FC<AdminToolsPanelProps> = ({
         </form>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-        <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-          <div className="rounded-xl bg-sky-50 p-2 text-sky-700"><Database className="h-5 w-5" /></div>
-          <div>
-            <h3 className="font-bold text-slate-900">اتصال به دیتابیس MongoDB</h3>
-            <p className="mt-1 text-xs text-slate-500">تنظیمات اتصال، تست اتصال و بازیابی داده‌های پایگاه داده در همین بخش مدیریت قرار دارد.</p>
-          </div>
-        </div>
-        <MongoSettingsCard
-          currentClinicData={clinicData}
-          onDataLoadedFromMongo={onDataLoadedFromMongo}
-          onClearLocalAndDBData={onClearLocalAndDBData}
-          onToast={onToast}
-          onRefreshAppConnection={onRefreshAppConnection}
-        />
-      </section>
+
     </div>
   );
 };
