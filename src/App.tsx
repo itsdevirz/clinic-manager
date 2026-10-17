@@ -330,10 +330,10 @@ export default function App() {
           onClick={() => setMobileMenuOpen(false)}
         >
           <div
-            className="w-64 bg-white h-full p-4 border-l border-slate-200"
+            className="clinic-mobile-drawer h-full w-64 border-l border-slate-200 bg-white p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="font-bold text-slate-900 text-sm mb-4 pb-2 border-b border-slate-100">
+            <div className="mb-4 border-b border-slate-100 pb-3 text-sm font-bold text-slate-900">
               {clinicData.settings.clinicName}
             </div>
             <div className="space-y-1">
@@ -351,10 +351,8 @@ export default function App() {
                     setCurrentTab(item.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full text-right p-2.5 rounded-lg text-xs font-semibold ${
-                    currentTab === item.id
-                      ? 'bg-sky-50 text-sky-700'
-                      : 'text-slate-600 hover:bg-slate-50'
+                  className={`clinic-mobile-nav-item w-full rounded-lg p-2.5 text-right text-xs font-semibold ${
+                    currentTab === item.id ? 'is-active' : ''
                   }`}
                 >
                   {item.label}
@@ -401,7 +399,7 @@ export default function App() {
                     اخطار: اتصال به دیتابیس MongoDB برقرار نیست!
                   </h4>
                   <p className="text-xs text-rose-800 mt-0.5">
-                    برای ذخیره واقعی اطلاعات، از فعال بودن MongoDB روی سیستم یا تنظیمات درست مطمئن شوید.
+                    برای ذخیره اطلاعات، اتصال پایگاه داده را بررسی کنید یا دوباره تلاش کنید.
                   </p>
                 </div>
               </div>
@@ -412,13 +410,6 @@ export default function App() {
                   className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
                 >
                   تلاش مجدد اتصال
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentTab('settings')}
-                  className="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-800 border border-rose-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  تنظیمات دیتابیس
                 </button>
                 <button
                   onClick={() => setDbWarningDismissed(true)}
