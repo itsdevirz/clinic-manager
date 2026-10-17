@@ -96,9 +96,18 @@ export const PatientDossierModal: React.FC<PatientDossierModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs no-print animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl max-w-3xl w-full border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative bg-white rounded-3xl max-w-3xl w-full border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+          title="بستن پرونده"
+          aria-label="بستن پرونده"
+        >
+          <X className="h-4 w-4" />
+        </button>
         {/* Dossier Header */}
-        <div className="p-5 border-b border-slate-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-4">
+        <div className="p-5 pr-14 border-b border-slate-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-sky-700 font-bold flex items-center justify-center text-sm shadow-2xs shrink-0">
               {patient.gender === 'female' ? 'خانم' : 'آقا'}
@@ -139,13 +148,6 @@ export const PatientDossierModal: React.FC<PatientDossierModalProps> = ({
               className="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
             >
               + پذیرش برای این بیمار
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200/60 transition-colors cursor-pointer"
-              title="بستن پنجره"
-            >
-              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -390,7 +392,10 @@ export const PatientDossierModal: React.FC<PatientDossierModalProps> = ({
                                 </button>
                               )}
                               <button
-                                onClick={() => onPrintAdmission(adm)}
+                                onClick={() => {
+                                  onClose();
+                                  onPrintAdmission(adm);
+                                }}
                                 className="flex items-center gap-1 text-[11px] text-slate-600 hover:text-slate-800 bg-white border border-slate-200 px-2 py-1 rounded-md cursor-pointer"
                               >
                                 <Printer className="w-3 h-3" />
