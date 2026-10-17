@@ -460,7 +460,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ admission, settings,
                 <div className="flex items-center justify-between text-[9px] text-slate-400 pt-1 border-t border-slate-200">
                   <span>سیستم یکپارچه مدیریت مطب و پذیرش کلینیک</span>
                   <span>تاریخ و ساعت چاپ سند: {admission.date} - ساعت {nowPersianTime}</span>
-                  <span>قطع سند: A4 استاندارد (نسخه چاپی)</span>
                 </div>
               </div>
             </div>
