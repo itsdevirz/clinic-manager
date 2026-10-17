@@ -603,3 +603,28 @@ main table tbody tr:hover {
     transition-duration: .01ms !important;
   }
 }
+
+.clinic-mobile-drawer {
+  box-shadow: 10px 0 36px rgba(17, 46, 54, .08);
+}
+
+.clinic-mobile-nav-item {
+  color: #526771;
+  transition: color .15s ease, background-color .15s ease;
+}
+
+.clinic-mobile-nav-item:hover {
+  background: #f6f9f9;
+  color: #1c4149;
+}
+
+.clinic-mobile-nav-item.is-active {
+  color: #126d68;
+  background: #eaf5f3;
+}
+
+@media (max-width: 767px) {
+  .clinic-sidebar {
+    width: min(17rem, calc(100vw - 3rem));
+  }
+}
