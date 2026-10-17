@@ -1364,38 +1364,56 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
       </div>
 
       {/* Admin Navigation Tabs (درآمد وصولی و کارکرد مطب به عنوان تب اول و پیش‌فرض) */}
-      <nav className="management-tabs" aria-label="بخش‌های مدیریت مطب">
-        {[
-          { id: 'financial' as AdminTab, label: 'درآمد و گزارش مالی' },
-          { id: 'service_analytics' as AdminTab, label: 'آمار بیماران' },
-          {
-            id: 'receivables' as AdminTab,
-            label: 'مطالبات و چک‌ها',
-            badge: activeReceivablesCount > 0 ? activeReceivablesCount : undefined,
-            badgeColor: 'bg-rose-600 text-white',
-          },
-          { id: 'lines' as AdminTab, label: 'لاین‌های درمانی' },
-          { id: 'services' as AdminTab, label: 'تعرفه خدمات' },
-          { id: 'operators' as AdminTab, label: 'اپراتورها' },
-          { id: 'shareholders' as AdminTab, label: 'سهام‌داران' },
-          { id: 'consumables' as AdminTab, label: 'مواد مصرفی' },
-          { id: 'admin_tools' as AdminTab, label: 'امنیت و پشتیبان' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveAdminTab(tab.id)}
-            aria-current={activeAdminTab === tab.id ? 'page' : undefined}
-            className={`management-tab ${activeAdminTab === tab.id ? 'is-active' : ''}`}
-          >
-            <span>{tab.label}</span>
-            {tab.badge !== undefined && (
-              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${tab.badgeColor || 'bg-slate-200'}`}>
-                {tab.badge}
-              </span>
-            )}
-          </button>
-        ))}
+      <nav className="management-navigation" aria-label="بخش‌های مدیریت مطب">
+        <section className="management-navigation-group">
+          <h3>گزارش‌ها</h3>
+          <div className="management-navigation-items">
+            {[
+              { id: 'financial' as AdminTab, label: 'گزارش مالی' },
+              { id: 'service_analytics' as AdminTab, label: 'آمار بیماران' },
+              {
+                id: 'receivables' as AdminTab,
+                label: 'مطالبات و چک‌ها',
+                badge: activeReceivablesCount > 0 ? activeReceivablesCount : undefined,
+              },
+            ].map((tab) => (
+              <button key={tab.id} type="button" onClick={() => setActiveAdminTab(tab.id)}
+                aria-current={activeAdminTab === tab.id ? 'page' : undefined}
+                className={`management-tab ${activeAdminTab === tab.id ? 'is-active' : ''}`}>
+                <span>{tab.label}</span>
+                {tab.badge !== undefined && <span className="management-tab-badge">{tab.badge}</span>}
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="management-navigation-group">
+          <h3>تنظیمات مطب</h3>
+          <div className="management-navigation-items">
+            {[
+              { id: 'lines' as AdminTab, label: 'لاین‌های درمانی' },
+              { id: 'services' as AdminTab, label: 'تعرفه خدمات' },
+              { id: 'operators' as AdminTab, label: 'اپراتورها' },
+              { id: 'shareholders' as AdminTab, label: 'سهام‌داران' },
+              { id: 'consumables' as AdminTab, label: 'مواد مصرفی' },
+            ].map((tab) => (
+              <button key={tab.id} type="button" onClick={() => setActiveAdminTab(tab.id)}
+                aria-current={activeAdminTab === tab.id ? 'page' : undefined}
+                className={`management-tab ${activeAdminTab === tab.id ? 'is-active' : ''}`}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="management-navigation-group management-navigation-security">
+          <h3>امنیت</h3>
+          <div className="management-navigation-items">
+            <button type="button" onClick={() => setActiveAdminTab('admin_tools')}
+              aria-current={activeAdminTab === 'admin_tools' ? 'page' : undefined}
+              className={`management-tab ${activeAdminTab === 'admin_tools' ? 'is-active' : ''}`}>
+              امنیت و پشتیبان‌گیری
+            </button>
+          </div>
+        </section>
       </nav>
 
       {/* Tab: Service & Patient Volume Analytics */}
