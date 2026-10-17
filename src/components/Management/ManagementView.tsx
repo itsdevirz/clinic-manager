@@ -729,9 +729,9 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
         </div>
 
         <div>
-          <h3 className="font-bold text-slate-900 text-lg">ورود امن به پنل مدیریت مطب</h3>
+          <h3 className="font-bold text-slate-900 text-lg">ورود به مدیریت مطب</h3>
           <p className="text-xs text-slate-500 mt-1">
-            این بخش به دلیل دارا بودن گزارش‌های مالی و تعرفه‌ها نیازمند تایید هویت مدیر مطب می‌باشد.
+            برای مشاهده گزارش‌ها و تغییر تنظیمات، رمز مدیریت را وارد کنید.
           </p>
         </div>
 
@@ -783,10 +783,10 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <h3 className="font-bold text-slate-900 text-sm">پنل مدیریت مطب و محاسبات مالی محرمانه</h3>
+            <h3 className="font-bold text-slate-900 text-sm">مدیریت مطب</h3>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            گزارش‌های درآمد وصولی، کارکرد اپراتورها، سهم سهامداران و ویرایش خدمات مطب
+            گزارش مالی، خدمات و کارکنان
           </p>
         </div>
 
