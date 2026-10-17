@@ -514,7 +514,6 @@ export default function App() {
               onOpenPatientDossier={handleOpenPatientDossier}
               clinicData={clinicData}
               onUpdateSettings={(settings) => {
-                setClinicData((prev) => ({ ...prev, settings }));
                 setClinicData((prev) => ({ ...prev, settings: { ...settings, mongoConfig: DEFAULT_MONGO_CONFIG } }));
                 addToast('تنظیمات با موفقیت ذخیره شد.');
               }}
@@ -528,7 +527,7 @@ export default function App() {
             <SettingsView
               settings={clinicData.settings}
               onUpdateSettings={(settings) => {
-                setClinicData((prev) => ({ ...prev, settings }));
+                setClinicData((prev) => ({ ...prev, settings: { ...settings, mongoConfig: DEFAULT_MONGO_CONFIG } }));
                 addToast('مشخصات مطب با موفقیت ذخیره شد.');
               }}
             />
