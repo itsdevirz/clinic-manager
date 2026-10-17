@@ -106,10 +106,7 @@ interface ManagementViewProps {
   onUpdateSettings: (settings: ClinicSettings) => void;
   onExportData: () => void;
   onImportData: (json: string) => boolean | Promise<boolean>;
-  onDataLoadedFromMongo: (data: any) => void;
-  onClearLocalAndDBData: () => void;
   onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
-  onRefreshAppConnection: () => Promise<boolean>;
 }
 
 export const ManagementView: React.FC<ManagementViewProps> = ({
@@ -134,10 +131,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
   onUpdateSettings,
   onExportData,
   onImportData,
-  onDataLoadedFromMongo,
-  onClearLocalAndDBData,
   onToast,
-  onRefreshAppConnection,
 }) => {
   const [editingAdmission, setEditingAdmission] = useState<Admission | null>(null);
   // PIN Verification State
@@ -2945,10 +2939,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
           onUpdateSettings={onUpdateSettings}
           onExportData={onExportData}
           onImportData={onImportData}
-          onDataLoadedFromMongo={onDataLoadedFromMongo}
-          onClearLocalAndDBData={onClearLocalAndDBData}
           onToast={onToast}
-          onRefreshAppConnection={onRefreshAppConnection}
         />
       )}
 
