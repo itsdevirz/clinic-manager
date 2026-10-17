@@ -83,26 +83,11 @@ function getConfigFilePath(): string {
 }
 
 function readMongoConfig(): MongoConfig {
-  try {
-    const filePath = getConfigFilePath();
-    if (fs.existsSync(filePath)) {
-      const raw = fs.readFileSync(filePath, 'utf-8');
-      const parsed = JSON.parse(raw);
-      return { ...DEFAULT_CONFIG, ...parsed, enabled: true, database: parsed.database || 'clinic' };
-    }
-  } catch (e) {
-    console.warn('Error reading config file:', e);
-  }
-  return DEFAULT_CONFIG;
+  return { ...DEFAULT_CONFIG };
 }
 
-function writeMongoConfig(config: MongoConfig): void {
-  try {
-    const filePath = getConfigFilePath();
-    fs.writeFileSync(filePath, JSON.stringify({ ...config, enabled: true, database: config.database || 'clinic' }, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Error writing config file:', e);
-  }
+function writeMongoConfig(_config: MongoConfig): void {
+  // Connection settings are intentionally fixed by the application.
 }
 
 function buildMongoURI(config: MongoConfig): string {
@@ -217,17 +202,18 @@ app.post('/api/db/reset-default', (req: Request, res: Response) => {
 });
 
 app.post('/api/db/test', async (req: Request, res: Response) => {
-  const config = (req.body && (req.body.host || req.body.uri) ? req.body : readMongoConfig()) as MongoConfig;
+  const config = readMongoConfig();
   let client: MongoClient | null = null;
 
   try {
     const mongo = await getMongoClient(config);
     client = mongo.client;
-    
-    // Ping target clinic database directly
+
+    // Create the clinic database collections automatically on first launch.
+    await ensureCollectionsExist(mongo.db);
     await mongo.db.command({ ping: 1 });
 
-    const collections = await mongo.db.listCollections().toArray().catch(() => []);
+    const collections = await mongo.db.listCollections().toArray();
 
     res.json({
       success: true,
