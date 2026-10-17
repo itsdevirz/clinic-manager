@@ -312,3 +312,294 @@ body, button, input, select, textarea, optgroup, kbd, code {
 }
 
 
+
+/* Clinic UI refresh: restrained palette, clearer hierarchy, and consistent controls */
+:root {
+  --clinic-ink: #172f3b;
+  --clinic-muted: #647783;
+  --clinic-border: #dce6e9;
+  --clinic-canvas: #f4f7f7;
+  --clinic-accent: #167d78;
+  --clinic-accent-dark: #116863;
+  --clinic-accent-soft: #e8f4f2;
+  --clinic-radius: 12px;
+}
+
+html {
+  background: var(--clinic-canvas);
+}
+
+body {
+  color: var(--clinic-ink);
+  background: var(--clinic-canvas);
+  font-size: 13px;
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select, textarea {
+  font-size: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(22, 125, 120, .65);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: #d4eeea;
+  color: #143b3a;
+}
+
+/* Fixed navigation */
+.clinic-sidebar {
+  background: #fff;
+  border-left: 1px solid var(--clinic-border);
+  box-shadow: -8px 0 28px rgba(25, 57, 65, .025);
+}
+
+.clinic-brand {
+  border-bottom: 1px solid #edf1f2;
+}
+
+.clinic-brand-mark {
+  background: #edf6f4;
+  border: 1px solid #d9eae6;
+}
+
+.clinic-nav-caption {
+  color: #8a9aa2;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.clinic-nav-item {
+  color: #526771;
+  border: 1px solid transparent;
+}
+
+.clinic-nav-item:hover:not(.is-active) {
+  color: #1c4149;
+  background: #f6f9f9;
+}
+
+.clinic-nav-item.is-active {
+  color: #126d68;
+  background: #eaf5f3;
+  border-color: #d9ebe7;
+}
+
+.clinic-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+  background: var(--clinic-accent);
+}
+
+.clinic-nav-item.is-active .clinic-nav-icon {
+  background: #fff;
+  color: var(--clinic-accent);
+  box-shadow: 0 1px 2px rgba(19, 76, 74, .07);
+}
+
+.clinic-nav-icon {
+  color: #758891;
+  transition: background-color .16s ease, color .16s ease;
+}
+
+.clinic-nav-badge {
+  color: #a13b3b;
+  background: #fff0ef;
+}
+
+.clinic-sidebar-footer {
+  background: #f6f9f9;
+  border: 1px solid #e8eeee;
+}
+
+/* App frame and title bar */
+main {
+  min-width: 0;
+  background: var(--clinic-canvas);
+}
+
+main > * {
+  min-width: 0;
+}
+
+header.sticky {
+  background: rgba(255, 255, 255, .96) !important;
+  border-bottom-color: #e1e9eb !important;
+  box-shadow: 0 2px 8px rgba(25, 57, 65, .025);
+}
+
+header.sticky h2 {
+  color: #203d47 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+/* Calm down generic cards without changing their content or layout */
+main .bg-white.rounded-2xl.border,
+main .bg-white.rounded-xl.border,
+main form.bg-white,
+main section.bg-white {
+  border-color: #e0e8ea;
+  box-shadow: 0 1px 2px rgba(22, 53, 60, .025);
+}
+
+main .shadow-xs {
+  --tw-shadow: 0 1px 2px 0 rgb(18 49 56 / 0.035);
+  box-shadow: var(--tw-shadow);
+}
+
+/* One consistent primary action language */
+main button.bg-sky-600,
+main button.bg-emerald-600,
+main button.bg-violet-600 {
+  background-color: var(--clinic-accent) !important;
+  border-color: var(--clinic-accent) !important;
+  box-shadow: 0 1px 2px rgba(22, 125, 120, .12);
+}
+
+main button.bg-sky-600:hover,
+main button.bg-emerald-600:hover,
+main button.bg-violet-600:hover {
+  background-color: var(--clinic-accent-dark) !important;
+}
+
+main .text-sky-600,
+main .text-sky-700,
+main .text-emerald-600,
+main .text-emerald-700 {
+  color: var(--clinic-accent) !important;
+}
+
+main .bg-sky-50,
+main .bg-sky-50\/50 {
+  background-color: var(--clinic-accent-soft) !important;
+}
+
+main .border-sky-100,
+main .border-sky-200 {
+  border-color: #d5eae6 !important;
+}
+
+/* Forms: quieter backgrounds and predictable focus states */
+main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+main select,
+main textarea {
+  border-color: #d9e3e6;
+  border-radius: 9px;
+  color: #213e48;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+
+main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+main select:focus,
+main textarea:focus {
+  border-color: #5ba7a1 !important;
+  box-shadow: 0 0 0 3px rgba(22, 125, 120, .1);
+}
+
+/* Table rhythm */
+main table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+main table thead th {
+  color: #5d717b;
+  background: #f5f8f8;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+main table tbody tr {
+  transition: background-color .12s ease;
+}
+
+main table tbody tr:hover {
+  background-color: #f7faf9;
+}
+
+/* Management sub-navigation */
+.management-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid #e0e8ea;
+  border-radius: 13px;
+  background: #f0f5f5;
+}
+
+.management-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #60737b;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.management-tab:hover {
+  color: #21434a;
+  background: rgba(255,255,255,.65);
+}
+
+.management-tab.is-active {
+  color: #176f69;
+  background: #fff;
+  border-color: #dce8e6;
+  box-shadow: 0 1px 2px rgba(22, 53, 60, .05);
+}
+
+/* Smaller displays */
+@media (max-width: 767px) {
+  .clinic-sidebar {
+    box-shadow: 8px 0 32px rgba(15, 35, 42, .08);
+  }
+
+  main {
+    padding: 14px !important;
+  }
+
+  header.sticky {
+    padding-inline: 14px !important;
+  }
+
+  .management-tab {
+    flex: 1 1 calc(50% - 5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
