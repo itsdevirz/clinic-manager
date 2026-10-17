@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header
       className={`sticky top-0 z-20 h-16 bg-white/95 backdrop-blur-xs border-b border-slate-200/80 px-4 md:px-8 flex items-center justify-between transition-all duration-200 no-print`}
     >
-      {/* Zone 1: Section Title & Mobile Toggle */}
+      {/* Section title and mobile menu */}
       <div className="flex items-center gap-3">
         <button
           onClick={onOpenMobileMenu}
@@ -84,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white hover:border-sky-300 hover:shadow-2xs text-slate-500 hover:text-slate-800 transition-all cursor-pointer group"
         >
           <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-600 transition-colors" />
-          <span>جستجوی سریع پرونده...</span>
+          <span>جستجوی پرونده</span>
           <kbd className="font-mono text-[10px] px-1.5 py-0.5 bg-white border border-slate-200/80 rounded-md text-slate-400 group-hover:text-slate-600 group-hover:border-slate-300 transition-colors shadow-2xs">
             Ctrl+K
           </kbd>
@@ -107,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
             <Clock className="w-3 h-3 text-slate-400" />
             <span className="font-mono tabular-nums font-semibold text-slate-700">{currentTime}</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-100 animate-pulse" title="مطب فعال و آنلاین" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-100 animate-pulse" title="برنامه فعال است" />
           </div>
         </div>
       </div>
