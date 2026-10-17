@@ -67,55 +67,23 @@ async function safeApiFetch(url: string, options?: RequestInit, retries = 6, del
   throw lastError;
 }
 
-export async function fetchMongoConfig(): Promise<MongoConfig | null> {
-  try {
-    const res = await safeApiFetch(getApiUrl('/api/db/config'));
-    if (res.ok) {
-      const data = await res.json();
-      if (data.config) return data.config;
-    }
-  } catch {}
-
-  try {
-    const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
-    if (!raw) return DEFAULT_MONGO_CONFIG;
-    return { ...DEFAULT_MONGO_CONFIG, ...JSON.parse(raw), enabled: true };
-  } catch {
-    return DEFAULT_MONGO_CONFIG;
-  }
+export async function fetchMongoConfig(): Promise<MongoConfig> {
+  return { ...DEFAULT_MONGO_CONFIG };
 }
 
 export async function resetMongoToDefault(): Promise<{ success: boolean; message: string; config?: MongoConfig }> {
-  try {
-    const res = await safeApiFetch(getApiUrl('/api/db/reset-default'), { method: 'POST' });
-    if (res.ok) return await res.json();
-  } catch {}
-
-  try {
-    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(DEFAULT_MONGO_CONFIG));
-    return {
-      success: true,
-      message: 'تنظیمات به مقادیر پیش‌فرض MongoDB بازنشانی شد.',
-      config: DEFAULT_MONGO_CONFIG,
-    };
-  } catch (e: any) {
-    return { success: false, message: e.message || 'خطا در بازنشانی تنظیمات' };
-  }
+  return {
+    success: true,
+    message: 'اتصال ثابت به دیتابیس clinic فعال است.',
+    config: { ...DEFAULT_MONGO_CONFIG },
+  };
 }
 
-export async function saveMongoConfig(config: MongoConfig): Promise<{ success: boolean; message?: string }> {
-  const updated = { ...config, enabled: true };
-  try {
-    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(updated));
-    const res = await safeApiFetch(getApiUrl('/api/db/config'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updated),
-    });
-    if (res.ok) return await res.json();
-  } catch {}
-
-  return { success: true, message: 'تنظیمات دیتابیس MongoDB ذخیره شد.' };
+export async function saveMongoConfig(_config: MongoConfig): Promise<{ success: boolean; message?: string }> {
+  return {
+    success: false,
+    message: 'تنظیمات اتصال دیتابیس توسط برنامه مدیریت می‌شود و قابل تغییر نیست.',
+  };
 }
 
 export async function testMongoConnection(config: MongoConfig): Promise<DBTestResponse> {
