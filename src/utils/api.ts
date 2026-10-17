@@ -30,8 +30,6 @@ export const DEFAULT_MONGO_CONFIG: MongoConfig = {
   enabled: true,
 };
 
-const CONFIG_STORAGE_KEY = 'clinic_mongo_config_v1';
-
 export function getApiUrl(endpoint: string): string {
   const clean = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   return `http://127.0.0.1:3000${clean}`;
@@ -88,7 +86,6 @@ export async function saveMongoConfig(_config: MongoConfig): Promise<{ success: 
 
 export async function testMongoConnection(config: MongoConfig): Promise<DBTestResponse> {
   try {
-    await saveMongoConfig(config);
     const res = await safeApiFetch(getApiUrl('/api/db/test'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
