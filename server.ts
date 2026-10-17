@@ -240,7 +240,7 @@ app.post('/api/db/test', async (req: Request, res: Response) => {
 });
 
 app.post('/api/db/init-tables', async (req: Request, res: Response) => {
-  const config = (req.body && (req.body.host || req.body.uri) ? req.body : readMongoConfig()) as MongoConfig;
+  const config = readMongoConfig();
   let client: MongoClient | null = null;
 
   try {
