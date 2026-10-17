@@ -190,15 +190,20 @@ app.get('/api/db/config', (req: Request, res: Response) => {
   res.json({ success: true, config });
 });
 
-app.post('/api/db/config', (req: Request, res: Response) => {
-  const newConfig = { ...(req.body || {}), enabled: true, database: req.body?.database || 'clinic' } as MongoConfig;
-  writeMongoConfig(newConfig);
-  res.json({ success: true, message: 'تنظیمات MongoDB با موفقیت ذخیره شد', config: newConfig });
+app.post('/api/db/config', (_req: Request, res: Response) => {
+  res.status(403).json({
+    success: false,
+    message: 'تنظیمات اتصال دیتابیس توسط برنامه مدیریت می‌شود و قابل تغییر نیست.',
+    config: DEFAULT_CONFIG,
+  });
 });
 
-app.post('/api/db/reset-default', (req: Request, res: Response) => {
-  writeMongoConfig(DEFAULT_CONFIG);
-  res.json({ success: true, message: 'تنظیمات به حالت پیش‌فرض (mongodb://127.0.0.1:27017/clinic) بازنشانی شد', config: DEFAULT_CONFIG });
+app.post('/api/db/reset-default', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    message: 'اتصال ثابت به دیتابیس clinic فعال است.',
+    config: DEFAULT_CONFIG,
+  });
 });
 
 app.post('/api/db/test', async (req: Request, res: Response) => {
