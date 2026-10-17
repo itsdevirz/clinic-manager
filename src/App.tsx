@@ -19,7 +19,7 @@ import {
   importClinicDataFromJSON
 } from './utils/storage';
 import {
-  fetchMongoConfig,
+  DEFAULT_MONGO_CONFIG,
   testMongoConnection,
   loadClinicDataFromMongo,
   syncClinicDataToMongo,
@@ -52,9 +52,7 @@ export default function App() {
 
   // Database Connection & Realtime Auto-Sync State
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isRestoringBackup, setIsRestoringBackup] = useState<boolean>(false);
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [dbWarningDismissed, setDbWarningDismissed] = useState<boolean>(false);
 
   // Modals & Navigation triggers
@@ -82,57 +80,39 @@ export default function App() {
   const checkDBConnection = useCallback(async (isInitial = false) => {
     setDbStatus('checking');
     try {
-      const cfg = await fetchMongoConfig();
-      if (!cfg || !cfg.enabled) {
-        setDbStatus('disconnected');
-        setIsMongoEnabled(false);
-        return false;
-      }
-
-      // Test connection
-      const testRes = await testMongoConnection(cfg);
+      const testRes = await testMongoConnection(DEFAULT_MONGO_CONFIG);
       if (!testRes.success) {
         setDbStatus('disconnected');
         setIsMongoEnabled(false);
-        if (!isInitial) {
-          addToast(`⚠️ اخطار: عدم اتصال به دیتابیس MongoDB: ${testRes.message}`, 'error');
-        }
+        if (!isInitial) addToast('اتصال به دیتابیس برقرار نشد. سرویس MongoDB را بررسی کنید.', 'error');
         return false;
       }
 
-      // Successfully connected!
-      setDbStatus('connected');
+      const loadRes = await loadClinicDataFromMongo();
+      if (!loadRes.success || !loadRes.data) {
+        setDbStatus('disconnected');
+        setIsMongoEnabled(false);
+        if (!isInitial) addToast('اتصال برقرار شد اما بارگذاری اطلاعات دیتابیس ناموفق بود.', 'error');
+        return false;
+      }
+
+      setClinicData((prev) => ({
+        ...prev,
+        ...loadRes.data,
+        settings: {
+          ...prev.settings,
+          ...(loadRes.data.settings || {}),
+          mongoConfig: DEFAULT_MONGO_CONFIG,
+        },
+      }));
       setIsMongoEnabled(true);
       setDbWarningDismissed(false);
-
-      const loadRes = await loadClinicDataFromMongo();
-      if (loadRes.success && loadRes.data) {
-        setClinicData((prev) => ({
-          ...prev,
-          ...loadRes.data,
-          settings: {
-            ...prev.settings,
-            ...(loadRes.data.settings || {}),
-            mongoConfig: cfg,
-          },
-        }));
-        const nowStr = new Date().toLocaleTimeString('fa-IR', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        });
-        setLastSyncTime(nowStr);
-        if (isInitial) {
-          addToast('اتصال به پایگاه داده MongoDB (دیتابیس clinic) برقرار شد.', 'success');
-        }
-      }
+      setDbStatus('connected');
       return true;
-    } catch (e: any) {
+    } catch {
       setDbStatus('disconnected');
       setIsMongoEnabled(false);
-      if (!isInitial) {
-        addToast('⚠️ اخطار: اتصال به پایگاه داده MongoDB برقرار نشد!', 'error');
-      }
+      if (!isInitial) addToast('اتصال به دیتابیس برقرار نشد. سرویس MongoDB را بررسی کنید.', 'error');
       return false;
     }
   }, [addToast]);
@@ -151,24 +131,12 @@ export default function App() {
   // Realtime auto-sync to MongoDB whenever clinicData changes
   useEffect(() => {
     if (!isRestoringBackup && isMongoEnabled && dbStatus === 'connected') {
-      setIsSyncing(true);
       const timer = setTimeout(async () => {
         try {
           const res = await syncClinicDataToMongo(clinicData);
-          if (res.success) {
-            const nowStr = new Date().toLocaleTimeString('fa-IR', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-            });
-            setLastSyncTime(nowStr);
-          } else {
-            console.warn('Sync failed:', res.message);
-          }
+          if (!res.success) console.warn('Sync failed:', res.message);
         } catch (e) {
           console.warn('Auto-sync error:', e);
-        } finally {
-          setIsSyncing(false);
         }
       }, 400);
       return () => clearTimeout(timer);
@@ -417,10 +385,7 @@ export default function App() {
           }}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
           dbStatus={dbStatus}
-          isSyncing={isSyncing}
-          lastSyncTime={lastSyncTime}
           onRetryConnection={() => checkDBConnection(false)}
-          onOpenDBSettings={() => setCurrentTab('settings')}
         />
 
         <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
@@ -550,22 +515,12 @@ export default function App() {
               clinicData={clinicData}
               onUpdateSettings={(settings) => {
                 setClinicData((prev) => ({ ...prev, settings }));
-                if (settings.mongoConfig?.enabled !== undefined) setIsMongoEnabled(settings.mongoConfig.enabled);
+                setClinicData((prev) => ({ ...prev, settings: { ...settings, mongoConfig: DEFAULT_MONGO_CONFIG } }));
                 addToast('تنظیمات با موفقیت ذخیره شد.');
               }}
               onExportData={handleExportData}
               onImportData={handleImportData}
-              onDataLoadedFromMongo={(newData) => {
-                setClinicData((prev) => ({ ...prev, ...newData }));
-                setIsMongoEnabled(true);
-                setDbStatus('connected');
-              }}
-              onClearLocalAndDBData={() => {
-                const fresh = clearAllMockAndRealData();
-                setClinicData(fresh);
-              }}
               onToast={addToast}
-              onRefreshAppConnection={() => checkDBConnection(false)}
             />
           )}
 
