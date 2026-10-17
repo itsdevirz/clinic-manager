@@ -1364,41 +1364,39 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
       </div>
 
       {/* Admin Navigation Tabs (درآمد وصولی و کارکرد مطب به عنوان تب اول و پیش‌فرض) */}
-      <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl text-xs">
+      <nav className="management-tabs" aria-label="بخش‌های مدیریت مطب">
         {[
-          { id: 'financial' as AdminTab, label: '💰 درآمد وصولی و کارکرد مطب' },
-          { id: 'service_analytics' as AdminTab, label: '👥 آمار بیماران و خدمات' },
+          { id: 'financial' as AdminTab, label: 'درآمد و گزارش مالی' },
+          { id: 'service_analytics' as AdminTab, label: 'آمار بیماران' },
           {
             id: 'receivables' as AdminTab,
-            label: '📞 طلبکاری‌ها و چک‌ها',
+            label: 'مطالبات و چک‌ها',
             badge: activeReceivablesCount > 0 ? activeReceivablesCount : undefined,
             badgeColor: 'bg-rose-600 text-white',
           },
-          { id: 'lines' as AdminTab, label: 'عملکرد لاین‌های درمانی' },
-          { id: 'services' as AdminTab, label: 'تعرفه و ویرایش خدمات' },
-          { id: 'operators' as AdminTab, label: 'مدیریت و کارکرد اپراتورها' },
-          { id: 'shareholders' as AdminTab, label: 'محاسبه سهم سهامداران' },
-          { id: 'consumables' as AdminTab, label: 'مدیریت مواد مصرفی' },
-          { id: 'admin_tools' as AdminTab, label: '🔐 امنیت، پشتیبان و دیتابیس' },
+          { id: 'lines' as AdminTab, label: 'لاین‌های درمانی' },
+          { id: 'services' as AdminTab, label: 'تعرفه خدمات' },
+          { id: 'operators' as AdminTab, label: 'اپراتورها' },
+          { id: 'shareholders' as AdminTab, label: 'سهام‌داران' },
+          { id: 'consumables' as AdminTab, label: 'مواد مصرفی' },
+          { id: 'admin_tools' as AdminTab, label: 'امنیت و پشتیبان' },
         ].map((tab) => (
           <button
             key={tab.id}
+            type="button"
             onClick={() => setActiveAdminTab(tab.id)}
-            className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeAdminTab === tab.id
-                ? 'bg-white text-slate-900 shadow-xs font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            aria-current={activeAdminTab === tab.id ? 'page' : undefined}
+            className={`management-tab ${activeAdminTab === tab.id ? 'is-active' : ''}`}
           >
             <span>{tab.label}</span>
             {tab.badge !== undefined && (
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${tab.badgeColor || 'bg-slate-200'}`}>
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${tab.badgeColor || 'bg-slate-200'}`}>
                 {tab.badge}
               </span>
             )}
           </button>
         ))}
-      </div>
+      </nav>
 
       {/* Tab: Service & Patient Volume Analytics */}
       {activeAdminTab === 'service_analytics' && (
