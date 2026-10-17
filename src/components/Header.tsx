@@ -5,7 +5,6 @@ import {
   Search,
   Menu,
   RefreshCw,
-  AlertTriangle,
 } from 'lucide-react';
 import { TabType } from '../types';
 import { getTodayPersianDate, formatPersianDateReadable, PERSIAN_WEEKDAYS } from '../utils/persianDate';
@@ -20,10 +19,7 @@ interface HeaderProps {
   onToggleLock?: () => void;
   onOpenMobileMenu?: () => void;
   dbStatus: DBConnectionState;
-  isSyncing?: boolean;
-  lastSyncTime?: string | null;
   onRetryConnection: () => void;
-  onOpenDBSettings?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
