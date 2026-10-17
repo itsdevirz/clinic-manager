@@ -1364,32 +1364,39 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
       </div>
 
       {/* Admin Navigation Tabs (درآمد وصولی و کارکرد مطب به عنوان تب اول و پیش‌فرض) */}
-      <div className="management-section-picker">
-        <label htmlFor="management-section" className="management-section-label">بخش مدیریت</label>
-        <select
-          id="management-section"
-          value={activeAdminTab}
-          onChange={(event) => setActiveAdminTab(event.target.value as AdminTab)}
-          className="management-section-select"
-        >
-          <optgroup label="گزارش‌ها">
-            <option value="financial">درآمد و گزارش مالی</option>
-            <option value="service_analytics">آمار بیماران و خدمات</option>
-            <option value="receivables">مطالبات و چک‌ها{activeReceivablesCount > 0 ? ` (${activeReceivablesCount})` : ''}</option>
-          </optgroup>
-          <optgroup label="تنظیمات مطب">
-            <option value="lines">لاین‌های درمانی</option>
-            <option value="services">تعرفه خدمات</option>
-            <option value="operators">اپراتورها</option>
-            <option value="shareholders">سهام‌داران</option>
-            <option value="consumables">مواد مصرفی</option>
-          </optgroup>
-          <optgroup label="امنیت">
-            <option value="admin_tools">امنیت و پشتیبان‌گیری</option>
-          </optgroup>
-        </select>
-        <span className="management-section-hint">برای خلوت ماندن صفحه، هر بار فقط بخش انتخاب‌شده نمایش داده می‌شود.</span>
-      </div>
+      <nav className="management-tabs" aria-label="بخش‌های مدیریت مطب">
+        {[
+          { id: 'financial' as AdminTab, label: 'درآمد و گزارش مالی' },
+          { id: 'service_analytics' as AdminTab, label: 'آمار بیماران' },
+          {
+            id: 'receivables' as AdminTab,
+            label: 'مطالبات و چک‌ها',
+            badge: activeReceivablesCount > 0 ? activeReceivablesCount : undefined,
+            badgeColor: 'bg-rose-600 text-white',
+          },
+          { id: 'lines' as AdminTab, label: 'لاین‌های درمانی' },
+          { id: 'services' as AdminTab, label: 'تعرفه خدمات' },
+          { id: 'operators' as AdminTab, label: 'اپراتورها' },
+          { id: 'shareholders' as AdminTab, label: 'سهام‌داران' },
+          { id: 'consumables' as AdminTab, label: 'مواد مصرفی' },
+          { id: 'admin_tools' as AdminTab, label: 'امنیت و پشتیبان' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveAdminTab(tab.id)}
+            aria-current={activeAdminTab === tab.id ? 'page' : undefined}
+            className={`management-tab ${activeAdminTab === tab.id ? 'is-active' : ''}`}
+          >
+            <span>{tab.label}</span>
+            {tab.badge !== undefined && (
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${tab.badgeColor || 'bg-slate-200'}`}>
+                {tab.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </nav>
 
       {/* Tab: Service & Patient Volume Analytics */}
       {activeAdminTab === 'service_analytics' && (
