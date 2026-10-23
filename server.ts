@@ -213,16 +213,16 @@ app.post('/api/sms/follow-up', async (req: Request, res: Response) => {
     'لغو۱۱';
 
   try {
-    const imported: any = await import('melipayamak-2');
+    const imported: any = await import('melipayamak');
     const Api = imported.default || imported.MelipayamakApi || imported.Melipayamak || imported.Api;
     if (typeof Api !== 'function') {
-      throw new Error('ساختار خروجی پکیج melipayamak-2 شناخته نشد.');
+      throw new Error('ساختار خروجی پکیج melipayamak شناخته نشد.');
     }
 
     const api = new Api(username, password);
     const sms = typeof api.sms === 'function' ? api.sms('rest', 'async') : null;
     if (!sms || typeof sms.send !== 'function') {
-      throw new Error('متد ارسال پیامک در پکیج melipayamak-2 پیدا نشد.');
+      throw new Error('متد ارسال پیامک در پکیج melipayamak پیدا نشد.');
     }
 
     const result = await sms.send(normalizedPhone, sender, message, false);
