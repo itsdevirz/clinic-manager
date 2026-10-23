@@ -200,16 +200,16 @@ app.post('/api/sms/follow-up', async (req: Request, res: Response) => {
     return;
   }
 
-  const normalizedPhone = String(phone).replace(/[\\s-]/g, '');
-  if (!/^09\\d{9}$/.test(normalizedPhone)) {
+  const normalizedPhone = String(phone).replace(/[\s-]/g, '');
+  if (!/^09\d{9}$/.test(normalizedPhone)) {
     res.status(400).json({ success: false, message: 'شماره همراه بیمار معتبر نیست.' });
     return;
   }
 
-  const message = `\\u0628\\u06cc\\u0645\\u0627\\u0631 ${patientName} \\u0639\\u0632\\u06cc\\u0632\\u060c
-\\u0646\\u0648\\u0628\\u062a \\u0645\\u0631\\u0627\\u062c\\u0639\\u0647 \\u0628\\u0639\\u062f\\u06cc \\u0634\\u0645\\u0627 \\u062a\\u0627\\u0631\\u06cc\\u062e ${scheduledDate} \\u0648 \\u0633\\u0627\\u0639\\u062a ${scheduledTime} \\u0645\\u06cc\\u200c\\u0628\\u0627\\u0634\\u062f.
-\\u0644\\u0637\\u0641\\u0627\\u064b \\u0633\\u0631 \\u062a\\u0627\\u0631\\u06cc\\u062e \\u0648 \\u0633\\u0627\\u0639\\u062a \\u0645\\u0631\\u0628\\u0648\\u0637\\u0647 \\u0645\\u0631\\u0627\\u062c\\u0639\\u0647 \\u0641\\u0631\\u0645\\u0627\\u06cc\\u06cc\\u062f.
-\\u0644\\u063a\\u0648\\u06f1\\u06f1`;
+  const message = String(patientName) + ' عزیز،\n' +
+    'نوبت مراجعه بعدی شما تاریخ ' + String(scheduledDate) + ' و ساعت ' + String(scheduledTime) + ' می‌باشد.\n' +
+    'لطفاً سر تاریخ و ساعت مربوطه مراجعه فرمایید.\n' +
+    'لغو۱۱';
 
   try {
     const imported: any = await import('melipayamak-2');
