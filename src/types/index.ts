@@ -118,6 +118,7 @@ export interface Admission {
   paymentNotes?: string;           // توضیحات نحوه پرداخت (وقتی دو مورد یا بیشتر انتخاب شد)
   chequeDetails?: ChequeDetails;
   followUpDate?: string;   // تاریخ مراجعه بعدی پیشنهادی/تاییدشده
+  followUpTime?: string;   // ساعت مراجعه بعدی
   followUpReason?: string;
   status: 'completed' | 'cancelled';
 }
@@ -139,6 +140,7 @@ export interface FollowUpReminder {
   operatorName: string;
   previousVisitDate: string;
   scheduledDate: string;   // YYYY/MM/DD شمسی
+  scheduledTime?: string;  // ساعت مراجعه بعدی به قالب HH:mm
   status: FollowUpStatus;
   reason: string;
   notes?: string;
