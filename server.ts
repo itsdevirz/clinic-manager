@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -181,6 +182,65 @@ async function ensureCollectionsExist(db: Db) {
 }
 
 // API Routes
+app.post('/api/sms/follow-up', async (req: Request, res: Response) => {
+  const username = process.env.MELIPAYAMAK_USERNAME;
+  const password = process.env.MELIPAYAMAK_PASSWORD;
+  const sender = process.env.MELIPAYAMAK_FROM;
+
+  if (!username || !password || !sender) {
+    res.status(503).json({
+      success: false,
+      message: 'تنظیمات سرویس پیامک کامل نیست. متغیرهای MELIPAYAMAK_USERNAME، MELIPAYAMAK_PASSWORD و MELIPAYAMAK_FROM را تنظیم کنید.',
+    });
+    return;
+  }
+
+  const { phone, patientName, scheduledDate, scheduledTime } = req.body || {};
+  if (!phone || !patientName || !scheduledDate || !scheduledTime) {
+    res.status(400).json({ success: false, message: 'شماره همراه، نام بیمار، تاریخ و ساعت نوبت الزامی است.' });
+    return;
+  }
+
+  const normalizedPhone = String(phone).replace(/[\s-]/g, '');
+  if (!/^09\d{9}$/.test(normalizedPhone)) {
+    res.status(400).json({ success: false, message: 'شماره همراه بیمار معتبر نیست.' });
+    return;
+  }
+
+  const message = String(patientName) + ' عزیز،\n' +
+    'نوبت مراجعه بعدی شما تاریخ ' + String(scheduledDate) + ' و ساعت ' + String(scheduledTime) + ' می‌باشد.\n' +
+    'لطفاً سر تاریخ و ساعت مربوطه مراجعه فرمایید.\n' +
+    'لغو۱۱';
+
+  try {
+    const imported: any = await import('melipayamak');
+    const Api = imported.default || imported.MelipayamakApi || imported.Melipayamak || imported.Api;
+    if (typeof Api !== 'function') {
+      throw new Error('ساختار خروجی پکیج melipayamak شناخته نشد.');
+    }
+
+    const api = new Api(username, password);
+    const sms = typeof api.sms === 'function' ? api.sms('rest', 'async') : null;
+    if (!sms || typeof sms.send !== 'function') {
+      throw new Error('متد ارسال پیامک در پکیج melipayamak پیدا نشد.');
+    }
+
+    const result = await sms.send(normalizedPhone, sender, message, false);
+    const resultText = typeof result === 'string' ? result : JSON.stringify(result);
+    if (result?.error || (typeof result === 'number' && result < 0) || (typeof resultText === 'string' && resultText.includes('"error"'))) {
+      throw new Error('درخواست ارسال پیامک توسط سرویس رد شد.');
+    }
+
+    res.json({ success: true, message: 'درخواست ارسال پیامک به سرویس ملی پیامک ارسال شد.' });
+  } catch (error: any) {
+    console.error('[SMS] Follow-up message submission failed:', error?.message || error);
+    res.status(502).json({
+      success: false,
+      message: 'ارسال پیامک ناموفق بود. تنظیمات سرویس و اعتبار پنل را بررسی کنید.',
+    });
+  }
+});
+
 app.get('/api/ping', (req: Request, res: Response) => {
   res.json({ ok: true, server: 'ClinicMongoBackend', time: new Date().toISOString() });
 });

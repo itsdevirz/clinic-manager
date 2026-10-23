@@ -279,6 +279,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     addDaysToPersianDate(today, services[0]?.followUpDaysDefault || 30)
   );
   const [followUpReason, setFollowUpReason] = useState<string>(services[0]?.followUpNoteDefault || '');
+  const [followUpTime, setFollowUpTime] = useState<string>('10:00');
   const [enableFollowUp, setEnableFollowUp] = useState(true);
 
   // Preselected patient trigger
@@ -463,6 +464,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       paymentNotes: paymentMethods.length >= 2 ? paymentNotes.trim() : undefined,
       chequeDetails: chequePayload,
       followUpDate: enableFollowUp ? followUpDate : undefined,
+      followUpTime: enableFollowUp ? followUpTime : undefined,
       followUpReason: enableFollowUp ? followUpReason : undefined,
       status: 'completed',
     };
@@ -479,6 +481,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         operatorName: operator.name,
         previousVisitDate: today,
         scheduledDate: followUpDate,
+        scheduledTime: followUpTime,
         status: 'pending',
         reason: followUpReason || `پیگیری نوبت ${newAdmission.serviceName}`,
       };
@@ -1977,6 +1980,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 onChange={setFollowUpDate}
                 label="تاریخ مراجعه بعدی (شمسی):"
                 placeholder="انتخاب تاریخ مراجعه..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-600 mb-1 font-medium">ساعت مراجعه بعدی:</label>
+              <input
+                type="time"
+                value={followUpTime}
+                onChange={(e) => setFollowUpTime(e.target.value)}
+                required
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-sky-500 focus:outline-none"
               />
             </div>
 

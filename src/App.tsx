@@ -172,6 +172,29 @@ export default function App() {
     }));
 
     addToast(`پذیرش بیمار ${admission.patientName} با موفقیت ثبت شد.`);
+
+    if (reminder && admission.patientPhone) {
+      fetch('http://127.0.0.1:3000/api/sms/follow-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: admission.patientPhone,
+          patientName: admission.patientName,
+          scheduledDate: reminder.scheduledDate,
+          scheduledTime: reminder.scheduledTime || admission.followUpTime,
+        }),
+      })
+        .then(async (response) => {
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || !result.success) {
+            addToast(result.message || 'پذیرش ثبت شد، اما ارسال پیامک ناموفق بود.', 'error');
+          } else {
+            addToast('پیامک نوبت مراجعه بعدی ارسال شد.');
+          }
+        })
+        .catch(() => addToast('پذیرش ثبت شد، اما ارتباط با سرویس پیامک برقرار نشد.', 'error'));
+    }
+
     setActiveReceiptAdmission(admission);
     setPreselectedPatientId(undefined);
   };
