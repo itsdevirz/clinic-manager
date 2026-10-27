@@ -48,7 +48,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ admission, settings,
 
   // Calculate gross total
   const consumablesTotal = (admission.consumables || []).reduce((acc, c) => acc + (c.cost || 0), 0);
-  const baseServiceTotal = (admission.basePrice || 0) * (admission.quantity || 1);
+  const baseServiceTotal = admission.serviceItems?.length
+    ? admission.serviceItems.reduce((sum, item) => sum + (item.totalAmount || 0), 0)
+    : (admission.basePrice || 0) * (admission.quantity || 1);
   const grossTotal = baseServiceTotal + consumablesTotal;
   const isSettled = admission.debtAmount === 0;
 
@@ -264,13 +266,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ admission, settings,
                           )}
                         </div>
                       </td>
-                      <td className="p-1.5 text-center font-mono font-medium">{admission.quantity || 1}</td>
+                      <td className="p-1.5 text-center font-mono font-medium">{admission.serviceItems?.length === 1 ? admission.serviceItems[0].quantityLabel : admission.serviceItems && admission.serviceItems.length > 1 ? '—' : (admission.quantity || 1)}</td>
                       <td className="p-1.5 text-left font-mono tabular-nums">{formatToman(admission.basePrice)}</td>
                       <td className="p-1.5 text-left font-mono tabular-nums text-rose-700">
                         {admission.discount > 0 ? formatToman(admission.discount) : '۰'}
                       </td>
                       <td className="p-1.5 text-left font-mono font-bold tabular-nums">
-                        {formatToman((admission.basePrice * (admission.quantity || 1)) - admission.discount)}
+                        {formatToman(admission.serviceItems && admission.serviceItems.length > 1 ? admission.finalAmount : (admission.basePrice * (admission.quantity || 1)) - admission.discount)}
                       </td>
                     </tr>
 

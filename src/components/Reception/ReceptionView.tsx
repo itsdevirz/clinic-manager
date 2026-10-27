@@ -383,7 +383,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   const addCurrentServiceToCart = () => {
     if (!selectedService && !isCustomServiceMode) return;
-    const serviceName = isCustomServiceMode ? (customServiceName.trim() || 'خدمت آزاد و دلخواه') : (selectedService?.name || 'خدمت');
+    const serviceName = isCustomServiceMode ? (customServiceName.trim() || 'خدمت آزاد و دلخواه') : (customServiceName.trim() || selectedService?.name || 'خدمت');
     const serviceCategory = isCustomServiceMode
       ? (customServiceDept === 'laser_women' ? 'laser_women' : customServiceDept === 'laser_men' ? 'laser_men' : 'custom')
       : (selectedService?.category || 'custom');
