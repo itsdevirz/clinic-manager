@@ -16,11 +16,11 @@ export const ToastContainer: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-5 left-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div className="fixed top-5 left-5 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2 duration-200 ${
+          className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-sm transition-all animate-in fade-in slide-in-from-top-2 duration-200 ${
             toast.type === 'success'
               ? 'bg-emerald-50/95 border-emerald-200 text-emerald-900'
               : toast.type === 'error'
