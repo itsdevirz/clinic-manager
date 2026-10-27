@@ -6,7 +6,7 @@ import dns from 'dns';
 import { createRequire } from 'node:module';
 import { MongoClient, Db } from 'mongodb';
 
-const require = createRequire(import.meta.url);
+const require = createRequire(path.join(process.cwd(), 'package.json'));
 const Melipayamak = require('melipayamak-2');
 
 // SMS panel settings: enter your panel credentials and sender line here.
