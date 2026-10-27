@@ -36,14 +36,16 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
 
   const isFirstNameValid = firstName.trim().length > 0;
   const isLastNameValid = lastName.trim().length > 0;
-  const isPhoneValid = phone.trim().length >= 8;
+  const normalizedPhone = phone.trim().replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+  const isPhoneValid = normalizedPhone.length === 0 || /^\d{11}$/.test(normalizedPhone);
 
   const normalizedNationalId = nationalId.trim().replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+  const isNationalIdValid = normalizedNationalId.length === 0 || /^\d{10}$/.test(normalizedNationalId);
   const duplicateNationalId = normalizedNationalId.length > 0 && existingPatients.some((p) => {
     const existing = (p.nationalId || '').trim().replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
     return existing === normalizedNationalId;
   });
-  const canSubmit = isFirstNameValid && isLastNameValid && isPhoneValid && !duplicateNationalId;
+  const canSubmit = isFirstNameValid && isLastNameValid && isPhoneValid && isNationalIdValid && !duplicateNationalId;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +61,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
       id: `pat-${Date.now()}`,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      phone: phone.trim(),
+      phone: normalizedPhone,
       job: job.trim() || undefined,
       address: address.trim() || 'ثبت نشده',
       nationalId: normalizedNationalId,
@@ -98,7 +100,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
   };
 
   // Check for duplicate warning (informational only)
-  const isDuplicatePhone = phone.trim().length >= 8 && existingPatients.some(
+  const isDuplicatePhone = normalizedPhone.length === 11 && existingPatients.some(
     (p) => p.phone.trim() === phone.trim()
   );
 
@@ -143,7 +145,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
               <div>
                 <p className="font-bold text-xs">امکان ثبت پرونده وجود ندارد!</p>
                 <p className="text-[11px] text-rose-600 mt-0.5">
-                  لطفاً فیلدهای اجباری مشخص‌شده با نشان قرمز (نام، نام خانوادگی و شماره تماس) را تکمیل فرمایید.
+                  لطفاً فیلدهای اجباری مشخص‌شده با نشان قرمز (نام، نام خانوادگی و شماره تماس) را تکمیل فرمایید و قالب اطلاعات اختیاری را بررسی کنید.
                 </p>
               </div>
             </div>
@@ -213,7 +215,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
               {/* Phone Number */}
               <div className="sm:col-span-2">
                 <label className="block text-slate-700 font-semibold mb-1">
-                  شماره تماس همراه <span className="text-rose-600 font-bold">*</span>
+                  شماره تماس همراه <span className="text-slate-400 text-[10px]">(اختیاری)</span>
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
@@ -234,7 +236,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                 {(submitAttempted || touched.phone) && !isPhoneValid && (
                   <p className="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
-                    وارد کردن شماره تماس معتبر (حداقل ۸ رقم) اجباری است.
+                    شماره تلفن در صورت ورود باید دقیقاً ۱۱ رقم باشد.
                   </p>
                 )}
                 {isDuplicatePhone && (
@@ -283,9 +285,10 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   value={nationalId}
                   onChange={(e) => setNationalId(e.target.value)}
                   placeholder="0012345678"
-                  className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-50/60 focus:bg-white focus:ring-2 text-xs font-mono outline-hidden transition-all text-right ${duplicateNationalId ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-200 focus:border-sky-500 focus:ring-sky-100'}`}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-50/60 focus:bg-white focus:ring-2 text-xs font-mono outline-hidden transition-all text-right ${duplicateNationalId || !isNationalIdValid ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-200 focus:border-sky-500 focus:ring-sky-100'}`}
                 />
                 {duplicateNationalId && <p className="mt-1.5 text-[11px] font-semibold text-rose-600" role="alert">بیمار با این کد ملی در پرونده‌ها وجود دارد.</p>}
+                {!isNationalIdValid && <p className="mt-1.5 text-[11px] font-semibold text-rose-600" role="alert">کد ملی در صورت ورود باید دقیقاً ۱۰ رقم باشد.</p>}
               </div>
 
               {/* Age */}
