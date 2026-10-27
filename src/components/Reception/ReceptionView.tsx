@@ -289,6 +289,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [followUpDate, setFollowUpDate] = useState<string>(
     addDaysToPersianDate(today, services[0]?.followUpDaysDefault || 30)
   );
+  const [followUpTime, setFollowUpTime] = useState<string>('10:00');
   const [followUpReason, setFollowUpReason] = useState<string>(services[0]?.followUpNoteDefault || '');
   const [enableFollowUp, setEnableFollowUp] = useState(true);
 
@@ -528,6 +529,27 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     }
 
     onAdmissionCreated(newAdmission, reminderPayload);
+
+    if (registrationStatus === 'final' && enableFollowUp && followUpDate && followUpTime && selectedPatient.phone?.trim()) {
+      fetch('/api/sms/appointment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: selectedPatient.phone,
+          patientName: `${selectedPatient.firstName} ${selectedPatient.lastName}`,
+          date: followUpDate,
+          time: followUpTime,
+        }),
+      })
+        .then(async (response) => {
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || !result.success) {
+            alert(result.message || 'پذیرش ثبت شد، اما ارسال پیامک نوبت بعدی ناموفق بود.');
+          }
+        })
+        .catch(() => alert('پذیرش ثبت شد، اما ارتباط با سرویس پیامک برقرار نشد.'));
+    }
+
     setSelectedServicesCart([]);
     setDraftAlreadyAdded(false);
     setPaymentMethods(['pos']);
@@ -2054,6 +2076,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             </div>
 
             <div>
+              <label className="block text-slate-600 mb-1 font-medium">ساعت مراجعه بعدی:</label>
+              <input
+                type="time"
+                value={followUpTime}
+                onChange={(e) => setFollowUpTime(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-sky-500 focus:outline-none"
+              />
+            </div>
+            <div className="sm:col-span-2">
               <label className="block text-slate-600 mb-1 font-medium">علت و عنوان نوبت بعدی:</label>
               <input
                 type="text"
