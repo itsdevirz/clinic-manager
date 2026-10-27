@@ -171,8 +171,13 @@ export default function App() {
       followUps: reminder ? [reminder, ...prev.followUps] : prev.followUps,
     }));
 
-    addToast(`پذیرش بیمار ${admission.patientName} با موفقیت ثبت شد.`);
-    setActiveReceiptAdmission(admission);
+    addToast(
+      admission.registrationStatus === 'temporary'
+        ? `پذیرش بیمار ${admission.patientName} به‌صورت موقت ثبت شد. می‌توانید از پرونده بیمار آن را ویرایش یا قطعی کنید.`
+        : `پذیرش بیمار ${admission.patientName} با موفقیت ثبت شد.`,
+      admission.registrationStatus === 'temporary' ? 'info' : 'success'
+    );
+    if (admission.registrationStatus !== 'temporary') setActiveReceiptAdmission(admission);
     setPreselectedPatientId(undefined);
   };
 

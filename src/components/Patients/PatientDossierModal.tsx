@@ -6,7 +6,8 @@ import {
   ShieldAlert,
   UserCheck,
   FileText,
-  CreditCard
+  CreditCard,
+  CheckCircle2
 } from 'lucide-react';
 import { Patient, Admission, FollowUpReminder, Operator } from '../../types';
 import {
@@ -344,6 +345,8 @@ export const PatientDossierModal: React.FC<PatientDossierModalProps> = ({
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-slate-900 text-sm">
                             {adm.serviceName}
+                            {adm.registrationStatus === 'temporary' && <span className="mr-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">ثبت موقت</span>}
+                            {adm.registrationStatus === 'final' && <span className="mr-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">ثبت قطعی</span>}
                           </span>
                           <span className="font-mono tabular-nums text-slate-500 text-[11px]">
                             {formatPersianDateReadable(adm.date)}
@@ -354,6 +357,12 @@ export const PatientDossierModal: React.FC<PatientDossierModalProps> = ({
                           <span>اپراتور: <strong>{adm.operatorName}</strong></span>
                           <span className="font-mono tabular-nums">قبض: {adm.admissionNumber}</span>
                         </div>
+
+                        {adm.serviceItems && adm.serviceItems.length > 1 && (
+                          <div className="rounded-lg border border-slate-200 bg-white p-2 space-y-1">
+                            {adm.serviceItems.map((item, index) => <div key={`${item.serviceId}-${index}`} className="flex items-center justify-between gap-2 text-[11px]"><span>{item.serviceName} · تعداد/واحد {item.quantityLabel}</span><strong>{formatToman(item.totalAmount)}</strong></div>)}
+                          </div>
+                        )}
 
                         {/* Service Details */}
                         {adm.details.laserAreas && adm.details.laserAreas.length > 0 && (
@@ -381,6 +390,9 @@ export const PatientDossierModal: React.FC<PatientDossierModalProps> = ({
                             </div>
 
                             <div className="flex items-center gap-1.5">
+                              {adm.registrationStatus === 'temporary' && onUpdateAdmission && (
+                                <button onClick={() => onUpdateAdmission({ ...adm, registrationStatus: 'final' })} className="flex items-center gap-1 text-[11px] text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md transition-colors cursor-pointer font-bold" title="تبدیل ثبت موقت به قطعی"><CheckCircle2 className="w-3 h-3" /><span>ثبت قطعی</span></button>
+                              )}
                               {onUpdateAdmission && (
                                 <button
                                   onClick={() => setEditingAdmission(adm)}

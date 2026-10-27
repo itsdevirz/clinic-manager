@@ -171,6 +171,12 @@ async function ensureCollectionsExist(db: Db) {
 
   // Create unique indexes on id
   await db.collection('patients').createIndex({ id: 1 }, { unique: true }).catch(() => {});
+  await db.collection('patients').createIndex(
+    { nationalId: 1 },
+    { unique: true, name: 'nationalId_unique_nonempty', partialFilterExpression: { nationalId: { $type: 'string', $gt: '' } } }
+  ).catch((error) => {
+    console.warn('[ClinicMongoBackend] Could not create nationalId unique index. Check for existing duplicate national IDs.', error.message);
+  });
   await db.collection('services').createIndex({ id: 1 }, { unique: true }).catch(() => {});
   await db.collection('operators').createIndex({ id: 1 }, { unique: true }).catch(() => {});
   await db.collection('admissions').createIndex({ id: 1 }, { unique: true }).catch(() => {});
@@ -334,9 +340,32 @@ app.post('/api/db/sync', async (req: Request, res: Response) => {
     await ensureCollectionsExist(mongo.db);
 
     if (Array.isArray(patients)) {
+      const normalizeNationalId = (value: unknown) => String(value || '')
+        .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+        .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+        .trim();
+      const nationalIds = new Set<string>();
+      for (const p of patients) {
+        const nationalId = normalizeNationalId(p?.nationalId);
+        if (!nationalId) continue;
+        if (nationalIds.has(nationalId)) {
+          res.status(409).json({ success: false, code: 'DUPLICATE_NATIONAL_ID', message: 'بیمار با این کد ملی در پرونده‌ها وجود دارد.' });
+          return;
+        }
+        nationalIds.add(nationalId);
+        const duplicate = await mongo.db.collection('patients').findOne({
+          nationalId: { $in: [nationalId, p.nationalId] },
+          id: { $ne: p.id },
+        });
+        if (duplicate) {
+          res.status(409).json({ success: false, code: 'DUPLICATE_NATIONAL_ID', message: 'بیمار با این کد ملی در پرونده‌ها وجود دارد.' });
+          return;
+        }
+      }
       for (const p of patients) {
         if (!p.id) continue;
-        await mongo.db.collection('patients').replaceOne({ id: p.id }, p, { upsert: true });
+        const normalized = normalizeNationalId(p.nationalId);
+        await mongo.db.collection('patients').replaceOne({ id: p.id }, { ...p, nationalId: normalized }, { upsert: true });
       }
     }
 
@@ -426,6 +455,20 @@ app.post('/api/db/restore', async (req: Request, res: Response) => {
         res.status(400).json({ success: false, message: `فهرست ${name} در فایل پشتیبان معتبر نیست.` });
         return;
       }
+    }
+
+    const restoredNationalIds = new Set<string>();
+    for (const patient of collections.patients) {
+      const nationalId = String(patient?.nationalId || '')
+        .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+        .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+        .trim();
+      if (!nationalId) continue;
+      if (restoredNationalIds.has(nationalId)) {
+        res.status(409).json({ success: false, message: 'فایل پشتیبان دارای کد ملی تکراری است: بیمار با این کد ملی در پرونده‌ها وجود دارد.' });
+        return;
+      }
+      restoredNationalIds.add(nationalId);
     }
 
     for (const [name, items] of Object.entries(collections)) {

@@ -28,6 +28,7 @@ import {
   ServiceDefinition,
   Operator,
   Admission,
+  AdmissionServiceItem,
   FollowUpReminder,
   PaymentMethod,
   ChequeDetails,
@@ -132,6 +133,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     });
   }, [departmentServices, selectedDepartment, serviceSubFilter, serviceSearchQuery]);
 
+  const [selectedServicesCart, setSelectedServicesCart] = useState<AdmissionServiceItem[]>([]);
+  const [draftAlreadyAdded, setDraftAlreadyAdded] = useState(false);
+
   const [selectedServiceId, setSelectedServiceId] = useState<string>(() => {
     const initialDeptServices = services.filter((s) => getServiceMainDepartment(s.category) === 'beauty');
     return initialDeptServices[0]?.id || services[0]?.id || '';
@@ -147,6 +151,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   // Handler to switch department and bring up its corresponding services
   const handleSelectDepartment = (dept: MainDepartmentId) => {
+    setDraftAlreadyAdded(false);
     setSelectedDepartment(dept);
     setServiceSubFilter('all');
     setServiceSearchQuery('');
@@ -194,8 +199,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   // Handler to change quantity with automatic price synchronization
   const handleQuantityChange = (newQty: number) => {
-    const val = Math.max(1, newQty);
+    const val = Math.max(0.01, newQty);
     setQuantity(val);
+    setQuantityInput(String(val));
+    setDraftAlreadyAdded(false);
     if (pricingCustomType === 'fixed_total' && isCustomPriceActive) {
       // In fixed total mode (e.g. 1,000,000 Toman for all 10 moles)
       const unit = val > 0 ? Math.round(totalPriceToman / val) : totalPriceToman;
@@ -212,6 +219,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   // Handler to set custom unit price in Toman
   const handleSetUnitPriceToman = (toman: number) => {
     const val = Math.max(0, toman);
+    setDraftAlreadyAdded(false);
     setUnitPriceToman(val);
     const tot = val * quantity;
     setTotalPriceToman(tot);
@@ -222,6 +230,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   // Handler to set fixed total price in Toman (e.g. user enters 1,000,000 Toman for 10 moles)
   const handleSetTotalPriceToman = (toman: number) => {
     const val = Math.max(0, toman);
+    setDraftAlreadyAdded(false);
     setTotalPriceToman(val);
     const unit = quantity > 0 ? Math.round(val / quantity) : val;
     setUnitPriceToman(unit);
@@ -231,6 +240,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   // Reset to default catalog price
   const handleResetToCatalogPrice = () => {
+    setDraftAlreadyAdded(false);
     setIsCustomPriceActive(false);
     if (selectedService) {
       const defaultToman = Math.round(selectedService.defaultPrice / 10);
@@ -250,6 +260,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   // Step 4: Financial & Payment
   const [basePrice, setBasePrice] = useState<number>(services[0]?.defaultPrice || 0);
   const [quantity, setQuantity] = useState<number>(1);
+  const [quantityInput, setQuantityInput] = useState<string>('1');
   const [discount, setDiscount] = useState<number>(0);
   const [paidAmount, setPaidAmount] = useState<number>(0);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(['pos']);
@@ -329,9 +340,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   }, [consumablesList, selectedConsumables]);
 
   // Calculations
+  const cartServicesTotal = useMemo(
+    () => selectedServicesCart.reduce((sum, item) => sum + item.totalAmount, 0),
+    [selectedServicesCart]
+  );
+
   const rawTotal = useMemo(() => {
-    return basePrice * quantity + consumablesCost;
-  }, [basePrice, quantity, consumablesCost]);
+    const currentServiceTotal = draftAlreadyAdded ? 0 : basePrice * quantity;
+    return cartServicesTotal + currentServiceTotal + consumablesCost;
+  }, [cartServicesTotal, draftAlreadyAdded, basePrice, quantity, consumablesCost]);
 
   const finalPayable = useMemo(() => {
     return Math.max(0, rawTotal - discount);
@@ -364,6 +381,36 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   }, [patients, searchQuery]);
 
 
+  const addCurrentServiceToCart = () => {
+    if (!selectedService && !isCustomServiceMode) return;
+    const serviceName = isCustomServiceMode ? (customServiceName.trim() || 'خدمت آزاد و دلخواه') : selectedService.name;
+    const serviceCategory = isCustomServiceMode
+      ? (customServiceDept === 'laser_women' ? 'laser_women' : customServiceDept === 'laser_men' ? 'laser_men' : 'custom')
+      : selectedService.category;
+    const serviceId = isCustomServiceMode ? `srv-custom-${Date.now()}` : selectedService.id;
+    const item: AdmissionServiceItem = {
+      serviceId,
+      serviceName,
+      serviceCategory,
+      quantity,
+      quantityLabel: quantityInput,
+      unitPrice: basePrice,
+      totalAmount: Math.round(basePrice * quantity),
+      details: {
+        laserAreas: !isCustomServiceMode && ['laser', 'laser_women', 'laser_men'].includes(selectedService.category) ? [selectedService.name] : undefined,
+        sessionNumber: !isCustomServiceMode ? sessionNumber : undefined,
+        totalSessions: !isCustomServiceMode ? (totalSessions || undefined) : undefined,
+        injectionSites: !isCustomServiceMode && ['botox', 'filler', 'prp'].includes(selectedService.category) ? injectionSites : undefined,
+        surgeryType: !isCustomServiceMode && selectedService.category === 'surgery' ? surgeryType : undefined,
+        mesoType: !isCustomServiceMode && selectedService.category === 'mesotherapy' ? mesoType : undefined,
+        customServiceName: customServiceName || undefined,
+        notes: serviceNotes || undefined,
+      },
+    };
+    setSelectedServicesCart((current) => [...current, item]);
+    setDraftAlreadyAdded(true);
+  };
+
   // Toggle injection site
   const toggleInjectionSite = (site: string) => {
     if (injectionSites.includes(site)) {
@@ -374,7 +421,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   };
 
   // Submit Admission
-  const handleSubmitAdmission = () => {
+  const handleSubmitAdmission = (registrationStatus: 'temporary' | 'final' = 'final') => {
     if (!selectedPatient) {
       alert('لطفاً ابتدا بیمار را از لیست انتخاب یا جستجو فرمایید.');
       return;
@@ -401,6 +448,35 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       };
     }
 
+    const currentServiceItem: AdmissionServiceItem = {
+      serviceId: isCustomServiceMode ? `srv-custom-${Date.now()}` : selectedService.id,
+      serviceName: isCustomServiceMode ? (customServiceName.trim() || 'خدمت آزاد و دلخواه') : selectedService.name,
+      serviceCategory: isCustomServiceMode
+        ? (customServiceDept === 'laser_women' ? 'laser_women' : customServiceDept === 'laser_men' ? 'laser_men' : 'custom')
+        : selectedService.category,
+      quantity,
+      quantityLabel: quantityInput,
+      unitPrice: basePrice,
+      totalAmount: Math.round(basePrice * quantity),
+      details: {
+        laserAreas: !isCustomServiceMode && ['laser', 'laser_women', 'laser_men'].includes(selectedService.category) ? [selectedService.name] : undefined,
+        sessionNumber: !isCustomServiceMode ? sessionNumber : undefined,
+        totalSessions: !isCustomServiceMode ? (totalSessions || undefined) : undefined,
+        injectionSites: !isCustomServiceMode && ['botox', 'filler', 'prp'].includes(selectedService.category) ? injectionSites : undefined,
+        surgeryType: !isCustomServiceMode && selectedService.category === 'surgery' ? surgeryType : undefined,
+        mesoType: !isCustomServiceMode && selectedService.category === 'mesotherapy' ? mesoType : undefined,
+        customServiceName: customServiceName || undefined,
+        notes: serviceNotes || undefined,
+      },
+    };
+    const admissionServices = draftAlreadyAdded ? selectedServicesCart : [...selectedServicesCart, currentServiceItem];
+    if (!admissionServices.length) {
+      alert('لطفاً حداقل یک خدمت انتخاب کنید.');
+      return;
+    }
+    const firstService = admissionServices[0];
+    const combinedServiceNames = admissionServices.map((item) => item.serviceName).join('، ');
+
     const newAdmission: Admission = {
       id: `adm-${Date.now()}`,
       admissionNumber: `ADM-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -408,52 +484,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       patientName: `${selectedPatient.firstName} ${selectedPatient.lastName}`,
       patientPhone: selectedPatient.phone,
       patientNationalId: selectedPatient.nationalId,
-      serviceId: isCustomServiceMode ? `srv-custom-${Date.now()}` : selectedService.id,
-      serviceName: isCustomServiceMode
-        ? (customServiceName.trim() || 'خدمت آزاد و دلخواه')
-        : (customServiceName.trim() || selectedService.name),
-      serviceCategory: isCustomServiceMode
-        ? (customServiceDept === 'laser_women' ? 'laser_women' : customServiceDept === 'laser_men' ? 'laser_men' : 'custom')
-        : selectedService.category,
+      serviceId: firstService.serviceId,
+      serviceName: combinedServiceNames,
+      serviceCategory: firstService.serviceCategory,
+      serviceItems: admissionServices,
       operatorId: operator.id,
       operatorName: operator.name,
       date: today,
       timestamp: Date.now(),
-      details: {
-        laserAreas:
-          !isCustomServiceMode &&
-          (selectedService.category === 'laser' ||
-           selectedService.category === 'laser_women' ||
-           selectedService.category === 'laser_men')
-            ? [selectedService.name]
-            : undefined,
-        sessionNumber:
-          !isCustomServiceMode &&
-          (selectedService.category === 'laser' ||
-           selectedService.category === 'laser_women' ||
-           selectedService.category === 'laser_men' ||
-           selectedService.category === 'tattoo_face' ||
-           selectedService.category === 'tattoo_body' ||
-           selectedService.category === 'carbon' ||
-           selectedService.category === 'mesotherapy')
-            ? sessionNumber
-            : undefined,
-        totalSessions: !isCustomServiceMode ? (totalSessions || undefined) : undefined,
-        injectionSites:
-          !isCustomServiceMode &&
-          (selectedService.category === 'botox' ||
-           selectedService.category === 'filler' ||
-           selectedService.category === 'prp')
-            ? injectionSites
-            : undefined,
-        surgeryType: !isCustomServiceMode && selectedService.category === 'surgery' ? surgeryType : undefined,
-        mesoType: !isCustomServiceMode && selectedService.category === 'mesotherapy' ? mesoType : undefined,
-        customServiceName: customServiceName || undefined,
-        notes: serviceNotes || undefined,
-      },
+      details: firstService.details || { notes: serviceNotes || undefined },
       consumables: usedConsumables,
-      basePrice,
-      quantity,
+      basePrice: firstService.unitPrice,
+      quantity: firstService.quantity,
       discount,
       finalAmount: finalPayable,
       paidAmount,
@@ -465,6 +507,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       followUpDate: enableFollowUp ? followUpDate : undefined,
       followUpReason: enableFollowUp ? followUpReason : undefined,
       status: 'completed',
+      registrationStatus,
     };
 
     let reminderPayload: FollowUpReminder | undefined = undefined;
@@ -485,6 +528,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     }
 
     onAdmissionCreated(newAdmission, reminderPayload);
+    setSelectedServicesCart([]);
+    setDraftAlreadyAdded(false);
     setPaymentMethods(['pos']);
     setPaymentNotes('');
   };
@@ -1000,6 +1045,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           <button
             type="button"
             onClick={() => {
+              setDraftAlreadyAdded(false);
               setIsCustomServiceMode(true);
               setIsCustomPriceActive(true);
             }}
@@ -1031,6 +1077,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   key={srv.id}
                   type="button"
                   onClick={() => {
+                    setDraftAlreadyAdded(false);
                     setIsCustomServiceMode(false);
                     setSelectedServiceId(srv.id);
                   }}
@@ -1104,12 +1151,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </button>
 
                 <input
-                  type="number"
-                  min="1"
-                  max="200"
-                  value={quantity}
-                  onChange={(e) => handleQuantityChange(parseInt(e.target.value, 10) || 1)}
-                  className="w-20 py-1.5 bg-slate-50 border-2 border-sky-400 rounded-xl font-mono text-center font-bold text-sm text-sky-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-sky-500/20"
+                  type="text"
+                  inputMode="decimal"
+                  value={quantityInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setQuantityInput(value);
+                    const normalized = value.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit))).replace(',', '.').replace('/', '.');
+                    const parsed = Number(normalized);
+                    if (Number.isFinite(parsed) && parsed > 0) {
+                      setQuantity(parsed);
+                      setDraftAlreadyAdded(false);
+                    }
+                  }}
+                  className="w-24 py-1.5 bg-slate-50 border-2 border-sky-400 rounded-xl font-mono text-center font-bold text-sm text-sky-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-sky-500/20"
                 />
 
                 <button
@@ -1312,6 +1367,24 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               معادل ریالی: {formatToman(basePrice * quantity)}
             </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div><h4 className="text-xs font-bold text-slate-800">خدمات انتخاب‌شده برای این پذیرش</h4><p className="text-[11px] text-slate-500 mt-1">می‌توانید بوتاکس، لیزر و خدمات دیگر را با تعداد و قیمت جداگانه اضافه کنید.</p></div>
+            <button type="button" onClick={addCurrentServiceToCart} className="shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3 py-2 text-xs font-bold text-white">افزودن خدمت فعلی</button>
+          </div>
+          {selectedServicesCart.length > 0 ? (
+            <div className="space-y-2">
+              {selectedServicesCart.map((item, index) => (
+                <div key={`${item.serviceId}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-white p-3 text-xs">
+                  <div><span className="font-bold text-slate-800">{item.serviceName}</span><span className="mr-2 text-slate-500">تعداد/واحد: {item.quantityLabel}</span></div>
+                  <div className="flex items-center gap-3"><span className="font-bold text-indigo-700">{formatToman(item.totalAmount)}</span><button type="button" onClick={() => { setSelectedServicesCart((current) => current.filter((_, i) => i !== index)); setDraftAlreadyAdded(false); }} className="text-rose-600 hover:text-rose-700">حذف</button></div>
+                </div>
+              ))}
+              <div className="text-left text-xs font-bold text-slate-700">جمع خدمات افزوده‌شده: {formatToman(cartServicesTotal)}</div>
+            </div>
+          ) : <p className="text-[11px] text-slate-500">هنوز خدمتی به فهرست اضافه نشده است؛ خدمت فعلی هنگام ثبت پذیرش نیز ثبت می‌شود.</p>}
         </div>
 
         {/* Service Specialized Options Drawer / Box */}
@@ -2011,19 +2084,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSubmitAdmission}
-          disabled={!selectedPatient}
-          className={`px-8 py-3 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-sm ${
-            selectedPatient
-              ? 'bg-sky-600 hover:bg-sky-700 text-white cursor-pointer hover:shadow-md'
-              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-          }`}
-        >
-          <CheckCircle2 className="w-4 h-4" />
-          <span>ثبت قطعی پذیرش و صدور فیش</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => handleSubmitAdmission('temporary')} disabled={!selectedPatient} className="px-5 py-3 rounded-xl font-bold text-xs flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white disabled:bg-slate-200 disabled:text-slate-400"><Clock className="w-4 h-4" /><span>ثبت موقت</span></button>
+          <button type="button" onClick={() => handleSubmitAdmission('final')} disabled={!selectedPatient} className="px-5 py-3 rounded-xl font-bold text-xs flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-slate-200 disabled:text-slate-400"><CheckCircle2 className="w-4 h-4" /><span>ثبت قطعی</span></button>
+        </div>
       </div>
     </div>
   );

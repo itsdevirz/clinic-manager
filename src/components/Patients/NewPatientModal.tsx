@@ -38,13 +38,19 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
   const isLastNameValid = lastName.trim().length > 0;
   const isPhoneValid = phone.trim().length >= 8;
 
-  const canSubmit = isFirstNameValid && isLastNameValid && isPhoneValid;
+  const normalizedNationalId = nationalId.trim().replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+  const duplicateNationalId = normalizedNationalId.length > 0 && existingPatients.some((p) => {
+    const existing = (p.nationalId || '').trim().replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+    return existing === normalizedNationalId;
+  });
+  const canSubmit = isFirstNameValid && isLastNameValid && isPhoneValid && !duplicateNationalId;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitAttempted(true);
 
     if (!canSubmit) {
+      if (duplicateNationalId) alert('بیمار با این کد ملی در پرونده‌ها وجود دارد.');
       return;
     }
 
@@ -56,7 +62,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
       phone: phone.trim(),
       job: job.trim() || undefined,
       address: address.trim() || 'ثبت نشده',
-      nationalId: nationalId.trim() || '',
+      nationalId: normalizedNationalId,
       age: age ? parseInt(age, 10) || 0 : 0,
       gender,
       medicalHistory: medicalHistory.trim() || 'ندارد',
@@ -277,8 +283,9 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
                   value={nationalId}
                   onChange={(e) => setNationalId(e.target.value)}
                   placeholder="0012345678"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 text-xs font-mono outline-hidden transition-all text-right"
+                  className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-50/60 focus:bg-white focus:ring-2 text-xs font-mono outline-hidden transition-all text-right ${duplicateNationalId ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-200 focus:border-sky-500 focus:ring-sky-100'}`}
                 />
+                {duplicateNationalId && <p className="mt-1.5 text-[11px] font-semibold text-rose-600" role="alert">بیمار با این کد ملی در پرونده‌ها وجود دارد.</p>}
               </div>
 
               {/* Age */}

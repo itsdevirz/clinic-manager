@@ -82,6 +82,17 @@ export interface AdmissionConsumable {
   cost: number;
 }
 
+export interface AdmissionServiceItem {
+  serviceId: string;
+  serviceName: string;
+  serviceCategory: ServiceCategory;
+  quantity: number;
+  quantityLabel: string;
+  unitPrice: number;
+  totalAmount: number;
+  details?: Admission['details'];
+}
+
 export interface Admission {
   id: string;
   admissionNumber: string;
@@ -92,6 +103,8 @@ export interface Admission {
   serviceId: string;
   serviceName: string;
   serviceCategory: ServiceCategory;
+  serviceItems?: AdmissionServiceItem[];
+  registrationStatus?: 'temporary' | 'final';
   operatorId: string;
   operatorName: string;
   date: string;       // تاریخ شمسی مثلاً ۱۴۰۳/۰۷/۱۶
