@@ -3,14 +3,18 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import dns from 'dns';
+import dotenv from 'dotenv';
 import { MongoClient, Db } from 'mongodb';
+import Melipayamak from 'melipayamak-2';
 
-// SMS panel settings: enter your panel credentials and sender line here.
+dotenv.config();
+
+// SMS panel settings can be supplied through environment variables or a local .env file.
 const SMS_CONFIG = {
-  enabled: true,
-  username: 'YOUR_USERNAME',
-  password: 'YOUR_PASSWORD',
-  from: '5000',
+  enabled: process.env.SMS_ENABLED !== 'false',
+  username: process.env.MELIPAYAMAK_USERNAME || process.env.SMS_USERNAME || '',
+  password: process.env.MELIPAYAMAK_PASSWORD || process.env.SMS_PASSWORD || '',
+  from: process.env.MELIPAYAMAK_FROM || process.env.SMS_FROM || '',
 };
 
 try {
@@ -243,7 +247,7 @@ app.post('/api/sms/appointment', async (req: Request, res: Response) => {
     res.status(503).json({ success: false, message: 'ارسال پیامک در server.ts غیرفعال است.' });
     return;
   }
-  if (SMS_CONFIG.username === 'YOUR_USERNAME' || SMS_CONFIG.password === 'YOUR_PASSWORD') {
+  if (!SMS_CONFIG.username || !SMS_CONFIG.password || !SMS_CONFIG.from) {
     res.status(503).json({ success: false, message: 'اطلاعات پنل پیامک را در SMS_CONFIG فایل server.ts وارد کنید.' });
     return;
   }
@@ -253,9 +257,6 @@ app.post('/api/sms/appointment', async (req: Request, res: Response) => {
     return;
   }
   try {
-    const { createRequire } = await import('node:module');
-    const require = createRequire(path.join(process.cwd(), 'package.json'));
-    const Melipayamak = require('melipayamak-2');
     const client = new Melipayamak(SMS_CONFIG.username, SMS_CONFIG.password);
     const result = await client.send({
       to: normalizedPhone,
