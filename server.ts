@@ -3,11 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import dns from 'dns';
-import { createRequire } from 'node:module';
 import { MongoClient, Db } from 'mongodb';
-
-const require = createRequire(path.join(process.cwd(), 'package.json'));
-const Melipayamak = require('melipayamak-2');
 
 // SMS panel settings: enter your panel credentials and sender line here.
 const SMS_CONFIG = {
@@ -215,6 +211,9 @@ app.post('/api/sms/appointment', async (req: Request, res: Response) => {
     return;
   }
   try {
+    const { createRequire } = await import('node:module');
+    const require = createRequire(path.join(process.cwd(), 'package.json'));
+    const Melipayamak = require('melipayamak-2');
     const client = new Melipayamak(SMS_CONFIG.username, SMS_CONFIG.password);
     const result = await client.send({
       to: normalizedPhone,
@@ -278,6 +277,7 @@ app.post('/api/db/test', async (req: Request, res: Response) => {
       tablesCount: collections.length,
     });
   } catch (e: any) {
+    console.error('[ClinicMongoBackend] MongoDB connection test failed:', e);
     res.json({
       success: false,
       message: `خطا در اتصال به MongoDB: ${e.message || 'سرویس MongoDB روی سیستم یافت نشد.'}`,
