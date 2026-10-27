@@ -91,11 +91,53 @@ function getConfigFilePath(): string {
 }
 
 function readMongoConfig(): MongoConfig {
+  const candidatePaths = [
+    path.join(getAppDataDir(), 'mongo-config.json'),
+    path.join(process.cwd(), 'mongo-config.json'),
+    path.join(path.dirname(process.execPath), 'mongo-config.json'),
+    path.join(path.dirname(process.execPath), 'resources', 'mongo-config.json'),
+  ];
+
+  for (const configPath of candidatePaths) {
+    try {
+      if (!fs.existsSync(configPath)) continue;
+      const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<MongoConfig>;
+      const database = typeof parsed.database === 'string' && parsed.database.trim()
+        ? parsed.database.trim()
+        : DEFAULT_CONFIG.database;
+      const host = typeof parsed.host === 'string' && parsed.host.trim()
+        ? parsed.host.trim()
+        : DEFAULT_CONFIG.host;
+      const port = Number(parsed.port) || DEFAULT_CONFIG.port;
+      const uri = typeof parsed.uri === 'string' && parsed.uri.trim()
+        ? parsed.uri.trim()
+        : `mongodb://${host}:${port}/${database}`;
+      return {
+        ...DEFAULT_CONFIG,
+        ...parsed,
+        uri,
+        host,
+        port,
+        database,
+        username: typeof parsed.username === 'string' ? parsed.username : '',
+        password: typeof parsed.password === 'string' ? parsed.password : '',
+        enabled: parsed.enabled !== false,
+      };
+    } catch (error) {
+      console.warn(`[ClinicMongoBackend] Could not read MongoDB config at ${configPath}:`, error);
+    }
+  }
+
   return { ...DEFAULT_CONFIG };
 }
 
-function writeMongoConfig(_config: MongoConfig): void {
-  // Connection settings are intentionally fixed by the application.
+function writeMongoConfig(config: MongoConfig): void {
+  const configPath = path.join(getAppDataDir(), 'mongo-config.json');
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+  } catch (error) {
+    console.error('[ClinicMongoBackend] Could not save MongoDB config:', error);
+  }
 }
 
 function buildMongoURI(config: MongoConfig): string {
