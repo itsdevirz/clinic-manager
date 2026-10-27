@@ -3,7 +3,19 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import dns from 'dns';
+import { createRequire } from 'node:module';
 import { MongoClient, Db } from 'mongodb';
+
+const require = createRequire(import.meta.url);
+const Melipayamak = require('melipayamak-2');
+
+// SMS panel settings: enter your panel credentials and sender line here.
+const SMS_CONFIG = {
+  enabled: true,
+  username: 'YOUR_USERNAME',
+  password: 'YOUR_PASSWORD',
+  from: '5000',
+};
 
 try {
   dns.setDefaultResultOrder('ipv4first');
@@ -187,6 +199,38 @@ async function ensureCollectionsExist(db: Db) {
 }
 
 // API Routes
+app.post('/api/sms/appointment', async (req: Request, res: Response) => {
+  const { to, patientName, date, time } = req.body || {};
+  if (!SMS_CONFIG.enabled) {
+    res.status(503).json({ success: false, message: 'ارسال پیامک در server.ts غیرفعال است.' });
+    return;
+  }
+  if (SMS_CONFIG.username === 'YOUR_USERNAME' || SMS_CONFIG.password === 'YOUR_PASSWORD') {
+    res.status(503).json({ success: false, message: 'اطلاعات پنل پیامک را در SMS_CONFIG فایل server.ts وارد کنید.' });
+    return;
+  }
+  const normalizedPhone = String(to || '').replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+  if (!/^09\d{9}$/.test(normalizedPhone) || !patientName || !date || !time) {
+    res.status(400).json({ success: false, message: 'شماره همراه یا اطلاعات نوبت معتبر نیست.' });
+    return;
+  }
+  try {
+    const client = new Melipayamak(SMS_CONFIG.username, SMS_CONFIG.password);
+    const result = await client.send({
+      to: normalizedPhone,
+      from: SMS_CONFIG.from,
+      text: `${patientName} عزیز،
+نوبت مراجعه بعدی شما تاریخ ${date} و ساعت ${time} می‌باشد.
+لطفاً سر تاریخ و ساعت مربوطه مراجعه فرمایید.
+لغو۱۱`,
+    });
+    res.json({ success: true, result });
+  } catch (error: any) {
+    console.error('[ClinicSMS] Send failed:', error);
+    res.status(502).json({ success: false, message: error?.message || 'ارسال پیامک ناموفق بود.' });
+  }
+});
+
 app.get('/api/ping', (req: Request, res: Response) => {
   res.json({ ok: true, server: 'ClinicMongoBackend', time: new Date().toISOString() });
 });
