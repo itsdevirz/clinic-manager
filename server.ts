@@ -7,7 +7,12 @@ import dotenv from 'dotenv';
 import { MongoClient, Db } from 'mongodb';
 import Melipayamak from 'melipayamak-2';
 
-dotenv.config();
+const userAppData = process.env.APPDATA || path.join(os.homedir(), '.config');
+[
+  path.join(process.cwd(), '.env'),
+  path.join(path.dirname(process.execPath), '.env'),
+  path.join(userAppData, 'ClinicManagement', '.env'),
+].forEach((envPath) => dotenv.config({ path: envPath }));
 
 // SMS panel settings can be supplied through environment variables or a local .env file.
 const SMS_CONFIG = {
