@@ -383,11 +383,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   const addCurrentServiceToCart = () => {
     if (!selectedService && !isCustomServiceMode) return;
-    const serviceName = isCustomServiceMode ? (customServiceName.trim() || 'خدمت آزاد و دلخواه') : selectedService.name;
+    const serviceName = isCustomServiceMode ? (customServiceName.trim() || 'خدمت آزاد و دلخواه') : (selectedService?.name || 'خدمت');
     const serviceCategory = isCustomServiceMode
       ? (customServiceDept === 'laser_women' ? 'laser_women' : customServiceDept === 'laser_men' ? 'laser_men' : 'custom')
-      : selectedService.category;
-    const serviceId = isCustomServiceMode ? `srv-custom-${Date.now()}` : selectedService.id;
+      : (selectedService?.category || 'custom');
+    const serviceId = isCustomServiceMode ? `srv-custom-${Date.now()}` : (selectedService?.id || `srv-${Date.now()}`);
     const item: AdmissionServiceItem = {
       serviceId,
       serviceName,
@@ -397,12 +397,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       unitPrice: basePrice,
       totalAmount: Math.round(basePrice * quantity),
       details: {
-        laserAreas: !isCustomServiceMode && ['laser', 'laser_women', 'laser_men'].includes(selectedService.category) ? [selectedService.name] : undefined,
+        laserAreas: !isCustomServiceMode && ['laser', 'laser_women', 'laser_men'].includes(selectedService?.category || 'custom') ? [selectedService?.name || ''] : undefined,
         sessionNumber: !isCustomServiceMode ? sessionNumber : undefined,
         totalSessions: !isCustomServiceMode ? (totalSessions || undefined) : undefined,
-        injectionSites: !isCustomServiceMode && ['botox', 'filler', 'prp'].includes(selectedService.category) ? injectionSites : undefined,
-        surgeryType: !isCustomServiceMode && selectedService.category === 'surgery' ? surgeryType : undefined,
-        mesoType: !isCustomServiceMode && selectedService.category === 'mesotherapy' ? mesoType : undefined,
+        injectionSites: !isCustomServiceMode && ['botox', 'filler', 'prp'].includes(selectedService?.category || 'custom') ? injectionSites : undefined,
+        surgeryType: !isCustomServiceMode && selectedService?.category === 'surgery' ? surgeryType : undefined,
+        mesoType: !isCustomServiceMode && selectedService?.category === 'mesotherapy' ? mesoType : undefined,
         customServiceName: customServiceName || undefined,
         notes: serviceNotes || undefined,
       },
@@ -449,11 +449,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     }
 
     const currentServiceItem: AdmissionServiceItem = {
-      serviceId: isCustomServiceMode ? `srv-custom-${Date.now()}` : selectedService.id,
-      serviceName: isCustomServiceMode ? (customServiceName.trim() || 'خدمت آزاد و دلخواه') : selectedService.name,
+      serviceId: isCustomServiceMode ? `srv-custom-${Date.now()}` : (selectedService?.id || `srv-${Date.now()}`),
+      serviceName: isCustomServiceMode ? (customServiceName.trim() || 'خدمت آزاد و دلخواه') : (selectedService?.name || 'خدمت'),
       serviceCategory: isCustomServiceMode
         ? (customServiceDept === 'laser_women' ? 'laser_women' : customServiceDept === 'laser_men' ? 'laser_men' : 'custom')
-        : selectedService.category,
+        : (selectedService?.category || 'custom'),
       quantity,
       quantityLabel: quantityInput,
       unitPrice: basePrice,
