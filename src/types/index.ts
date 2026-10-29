@@ -132,6 +132,20 @@ export interface Admission {
   chequeDetails?: ChequeDetails;
   followUpDate?: string;   // تاریخ مراجعه بعدی پیشنهادی/تاییدشده
   followUpReason?: string;
+  /** Optional surgery deposit and scheduled procedure tracking. Amounts are in the app's existing rial unit. */
+  deposit?: {
+    amount: number;
+    paymentMethod: PaymentMethod;
+    scheduledDate: string;
+    scheduledTime: string;
+    status: 'reserved' | 'completed';
+    balancePaidAmount?: number;
+    balancePaymentMethod?: PaymentMethod;
+    completedAt?: number;
+    notes?: string;
+  };
+  voidedAt?: number;
+  voidReason?: string;
   status: 'completed' | 'cancelled';
 }
 
@@ -189,5 +203,6 @@ export type TabType =
   | 'reception'
   | 'patients'
   | 'followups'
+  | 'invoices'
   | 'management'
   | 'settings';
