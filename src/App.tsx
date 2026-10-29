@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Patient,
   ServiceDefinition,
@@ -32,6 +32,7 @@ import { ReceptionView } from './components/Reception/ReceptionView';
 import { PatientsView } from './components/Patients/PatientsView';
 import { FollowUpsView } from './components/FollowUps/FollowUpsView';
 import { ManagementView } from './components/Management/ManagementView';
+import { InvoicesView } from './components/InvoicesView';
 import { SettingsView } from './components/Settings/SettingsView';
 import { ReceiptModal } from './components/ReceiptModal';
 import { PatientDossierModal } from './components/Patients/PatientDossierModal';
@@ -163,8 +164,39 @@ export default function App() {
     ).length;
   }, [clinicData.followUps, today]);
 
+  // Guard against rapid double-clicks as well as already-saved duplicate invoices.
+  const invoiceFingerprints = useRef<Set<string>>(new Set());
+  const getInvoiceFingerprint = (admission: Admission) => JSON.stringify({
+    patientId: admission.patientId,
+    date: admission.date,
+    serviceItems: (admission.serviceItems || []).map(item => ({
+      serviceId: item.serviceId,
+      serviceName: item.serviceName.trim().toLocaleLowerCase(),
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      totalAmount: item.totalAmount,
+      details: item.details || {},
+    })),
+    serviceName: admission.serviceName.trim().toLocaleLowerCase(),
+    basePrice: admission.basePrice,
+    quantity: admission.quantity,
+    discount: admission.discount,
+    finalAmount: admission.finalAmount,
+    consumables: (admission.consumables || []).map(item => ({ name: item.name, cost: item.cost })).sort((a,b) => a.name.localeCompare(b.name)),
+    depositAmount: admission.deposit?.amount || 0,
+  });
+
   // Actions
-  const handleAdmissionCreated = (admission: Admission, reminder?: FollowUpReminder) => {
+  const handleAdmissionCreated = (admission: Admission, reminder?: FollowUpReminder): boolean => {
+    const fingerprint = getInvoiceFingerprint(admission);
+    const duplicate = clinicData.admissions.some(existing =>
+      existing.status !== 'cancelled' && getInvoiceFingerprint(existing) === fingerprint
+    ) || invoiceFingerprints.current.has(fingerprint);
+    if (duplicate) {
+      addToast('این فاکتور کاملاً مشابه قبلاً ثبت شده است؛ از ثبت تکراری جلوگیری شد.', 'error');
+      return false;
+    }
+    invoiceFingerprints.current.add(fingerprint);
     setClinicData((prev) => ({
       ...prev,
       admissions: [admission, ...prev.admissions],
@@ -179,6 +211,7 @@ export default function App() {
     );
     if (admission.registrationStatus !== 'temporary') setActiveReceiptAdmission(admission);
     setPreselectedPatientId(undefined);
+    return true;
   };
 
   const handlePatientCreated = (patient: Patient) => {
@@ -472,6 +505,29 @@ export default function App() {
               onUpdateFollowUpStatus={handleUpdateFollowUpStatus}
               onOpenReceptionForPatient={handleOpenReceptionForPatient}
               onOpenPatientDossier={handleOpenPatientDossier}
+            />
+          )}
+
+          {currentTab === 'invoices' && (
+            <InvoicesView
+              admissions={clinicData.admissions}
+              patients={clinicData.patients}
+              services={clinicData.services}
+              operators={clinicData.operators}
+              onAdmissionCreated={handleAdmissionCreated}
+              onUpdateAdmission={handleUpdateAdmission}
+              onUpdateFollowUpStatus={(admissionId, status, notes) => {
+                setClinicData(prev => ({
+                  ...prev,
+                  followUps: prev.followUps.map(item =>
+                    item.admissionId === admissionId
+                      ? { ...item, status, notes: notes || item.notes }
+                      : item
+                  ),
+                }));
+              }}
+              onToast={addToast}
+              onPrintAdmission={adm => setActiveReceiptAdmission(adm)}
             />
           )}
 
