@@ -133,6 +133,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
       debtAmount: total - deposit,
       paymentMethod: depositMethod,
       paymentMethods: [depositMethod],
+      paymentBreakdown: { [depositMethod]: deposit },
       paymentNotes: `بیعانه عمل: ${formatToman(deposit)} تومان؛ موعد عمل: ${procedureDate} ساعت ${procedureTime}${depositNotes.trim() ? `؛ ${depositNotes.trim()}` : ''}`,
       followUpDate: procedureDate,
       followUpReason: `نوبت عمل؛ بیعانه پرداخت شده (${formatToman(deposit)} تومان)`,
@@ -202,11 +203,14 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
     if (!window.confirm(`دریافت مانده ${formatToman(remaining)} تومان و تسویه فاکتور تأیید شود؟`)) return;
     const oldMethods = admission.paymentMethods?.length ? admission.paymentMethods : [admission.paymentMethod];
     const methods = Array.from(new Set([...oldMethods, method]));
+    const priorBreakdown = admission.paymentBreakdown || { [admission.deposit?.paymentMethod || admission.paymentMethod]: admission.deposit?.amount || 0 };
+    const updatedBreakdown = { ...priorBreakdown, [method]: (priorBreakdown[method] || 0) + remaining };
     const updated: Admission = {
       ...admission,
       paidAmount: admission.finalAmount,
       debtAmount: 0,
       paymentMethods: methods,
+      paymentBreakdown: updatedBreakdown,
       paymentMethod: oldMethods[0] || admission.paymentMethod,
       paymentNotes: `بیعانه ${formatToman(admission.deposit?.amount || 0)} تومان با ${paymentLabels[admission.deposit?.paymentMethod || admission.paymentMethod]} دریافت شد؛ مانده ${formatToman(remaining)} تومان با ${paymentLabels[method]} تسویه شد.${admission.deposit?.notes ? `؛ توضیحات: ${admission.deposit.notes}` : ''}`,
       deposit: { ...admission.deposit!, status: 'completed', balancePaidAmount: remaining, balancePaymentMethod: method, completedAt: Date.now() },
