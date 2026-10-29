@@ -47,7 +47,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Reception operational metrics (بدون مبالغ مالی و درآمد وصولی منشی)
   const todayAdmissions = useMemo(() => {
-    return admissions.filter((a) => a.date === today);
+    return admissions.filter((a) => a.status !== 'cancelled' && a.date === today);
   }, [admissions, today]);
 
   const upcomingFollowUps = useMemo(() => {
