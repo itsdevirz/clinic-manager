@@ -166,7 +166,7 @@ export default function App() {
 
   // Guard against rapid double-clicks as well as already-saved duplicate invoices.
   const invoiceFingerprints = useRef<Map<string, number>>(new Map());
-  const getInvoiceFingerprint = (admission: Admission) => JSON.stringify({
+  const getInvoiceFingerprint = (admission: Admission): string => JSON.stringify({
     patientId: admission.patientId,
     date: admission.date,
     serviceItems: (admission.serviceItems || []).map(item => ({
@@ -186,7 +186,7 @@ export default function App() {
     paymentMethods: [...(admission.paymentMethods || [admission.paymentMethod])].sort(),
     consumables: (admission.consumables || []).map(item => ({ name: item.name, cost: item.cost })).sort((a,b) => a.name.localeCompare(b.name)),
     deposit: admission.deposit ? { amount: admission.deposit.amount, paymentMethod: admission.deposit.paymentMethod, scheduledDate: admission.deposit.scheduledDate, scheduledTime: admission.deposit.scheduledTime } : null,
-  });
+  }) || '';
 
   // Actions
   const handleAdmissionCreated = (admission: Admission, reminder?: FollowUpReminder): boolean => {
