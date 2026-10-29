@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CalendarClock, CheckCircle2, CircleDollarSign, FileText, Ban, Search, Plus, Clock3 } from 'lucide-react';
+import { CheckCircle2, CircleDollarSign, FileText, Ban, Search, Plus, Clock3 } from 'lucide-react';
 import { Admission, FollowUpReminder, Patient, PaymentMethod, ServiceDefinition, Operator } from '../types';
 import { formatToman, getTodayPersianDate } from '../utils/persianDate';
 import { getApiUrl } from '../utils/api';
@@ -186,6 +186,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
     }
     if (!window.confirm(`فاکتور ${admission.admissionNumber} باطل شود؟ این فاکتور حذف نخواهد شد.`)) return;
     onUpdateAdmission({ ...admission, status: 'cancelled', voidedAt: Date.now(), voidReason: reason.trim() });
+    onUpdateFollowUpStatus(admission.id, 'cancelled', `فاکتور ابطال شد: ${reason.trim()}`);
     onToast('فاکتور ابطال شد و در سوابق باقی ماند.', 'success');
   };
 
