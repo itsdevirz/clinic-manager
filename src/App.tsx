@@ -189,6 +189,10 @@ export default function App() {
 
   // Actions
   const handleAdmissionCreated = (admission: Admission, reminder?: FollowUpReminder): boolean => {
+    const now = Date.now();
+    for (const [key, createdAt] of invoiceFingerprints.current) {
+      if (now - createdAt >= 10000) invoiceFingerprints.current.delete(key);
+    }
     const fingerprint = getInvoiceFingerprint(admission);
     const previousAttemptAt = invoiceFingerprints.current.get(fingerprint);
     const duplicate = clinicData.admissions.some(existing =>
@@ -198,7 +202,7 @@ export default function App() {
       addToast('این فاکتور کاملاً مشابه قبلاً ثبت شده است؛ از ثبت تکراری جلوگیری شد.', 'error');
       return false;
     }
-    invoiceFingerprints.current.set(fingerprint, Date.now());
+    invoiceFingerprints.current.set(fingerprint, now);
     setClinicData((prev) => ({
       ...prev,
       admissions: [admission, ...prev.admissions],
