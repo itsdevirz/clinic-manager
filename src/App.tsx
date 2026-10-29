@@ -182,6 +182,8 @@ export default function App() {
     quantity: admission.quantity,
     discount: admission.discount,
     finalAmount: admission.finalAmount,
+    paymentMethod: admission.paymentMethod,
+    paymentMethods: [...(admission.paymentMethods || [admission.paymentMethod])].sort(),
     consumables: (admission.consumables || []).map(item => ({ name: item.name, cost: item.cost })).sort((a,b) => a.name.localeCompare(b.name)),
     deposit: admission.deposit ? { amount: admission.deposit.amount, paymentMethod: admission.deposit.paymentMethod, scheduledDate: admission.deposit.scheduledDate, scheduledTime: admission.deposit.scheduledTime } : null,
   });
