@@ -173,7 +173,6 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
         if (!response.ok || !result.success) onToast(result.message || 'نوبت و بیعانه ثبت شد، اما ارسال پیامک ناموفق بود.', 'error');
       }).catch(() => onToast('نوبت و بیعانه ثبت شد، اما ارتباط با سرویس پیامک برقرار نشد.', 'error'));
     }
-    onToast('نوبت عمل و بیعانه با موفقیت ثبت شد.');
     resetDepositForm();
     setTab('deposits');
   };
