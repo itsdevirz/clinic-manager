@@ -24,6 +24,20 @@ jobs:
         with:
           node-version: 20
 
+      # Tauri bundles this file as a resource; setup-node installs it elsewhere on the runner.
+      - name: آماده‌سازی فایل Node.js موردنیاز Tauri
+        shell: pwsh
+        run: |
+          $nodePath = (Get-Command node).Source
+          if (-not (Test-Path $nodePath)) {
+            throw "Node.js executable was not found after setup-node."
+          }
+          New-Item -ItemType Directory -Force -Path "build/node-win" | Out-Null
+          Copy-Item -Path $nodePath -Destination "build/node-win/node.exe" -Force
+          if (-not (Test-Path "build/node-win/node.exe")) {
+            throw "Failed to prepare build/node-win/node.exe."
+          }
+
       - name: راه‌اندازی کامپایلر Rust
         uses: dtolnay/rust-toolchain@stable
 
