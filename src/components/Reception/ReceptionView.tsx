@@ -45,6 +45,7 @@ import {
   formatPersianDateReadable
 } from '../../utils/persianDate';
 import { PersianDatePicker } from '../Common/PersianDatePicker';
+import { getApiUrl } from '../../utils/api';
 
 interface ReceptionViewProps {
   patients: Patient[];
@@ -531,7 +532,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     onAdmissionCreated(newAdmission, reminderPayload);
 
     if (registrationStatus === 'final' && enableFollowUp && followUpDate && followUpTime && selectedPatient.phone?.trim()) {
-      fetch('/api/sms/appointment', {
+      fetch(getApiUrl('/api/sms/appointment'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
