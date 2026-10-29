@@ -128,6 +128,8 @@ export interface Admission {
   debtAmount: number;      // بدهی باقیمانده
   paymentMethod: PaymentMethod;
   paymentMethods?: PaymentMethod[]; // روش‌های پرداخت انتخابی (تکی یا چندگانه)
+  /** Actual collected amounts by payment method, in the app's existing rial unit. */
+  paymentBreakdown?: Partial<Record<PaymentMethod, number>>;
   paymentNotes?: string;           // توضیحات نحوه پرداخت (وقتی دو مورد یا بیشتر انتخاب شد)
   chequeDetails?: ChequeDetails;
   followUpDate?: string;   // تاریخ مراجعه بعدی پیشنهادی/تاییدشده
