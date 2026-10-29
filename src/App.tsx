@@ -207,7 +207,9 @@ export default function App() {
     }));
 
     addToast(
-      admission.registrationStatus === 'temporary'
+      admission.deposit
+        ? `نوبت عمل ${admission.patientName} با ثبت بیعانه رزرو شد.`
+        : admission.registrationStatus === 'temporary'
         ? `پذیرش بیمار ${admission.patientName} به‌صورت موقت ثبت شد. می‌توانید از پرونده بیمار آن را ویرایش یا قطعی کنید.`
         : `پذیرش بیمار ${admission.patientName} با موفقیت ثبت شد.`,
       admission.registrationStatus === 'temporary' ? 'info' : 'success'
