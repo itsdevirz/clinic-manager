@@ -41,6 +41,7 @@ import {
   Shareholder,
   ClinicSettings,
   ServiceCategory,
+  PaymentMethod,
   MainDepartmentId,
   getServiceMainDepartment
 } from '../../types';
@@ -380,11 +381,15 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
     const totalPaid = filteredAdmissions.reduce((sum, a) => sum + a.paidAmount, 0);
     const totalDebt = filteredAdmissions.reduce((sum, a) => sum + (a.debtAmount || 0), 0);
 
-    // By payment method
-    const posTotal = filteredAdmissions.filter((a) => a.paymentMethod === 'pos').reduce((s, a) => s + a.paidAmount, 0);
-    const cardTotal = filteredAdmissions.filter((a) => a.paymentMethod === 'card_to_card').reduce((s, a) => s + a.paidAmount, 0);
-    const cashTotal = filteredAdmissions.filter((a) => a.paymentMethod === 'cash').reduce((s, a) => s + a.paidAmount, 0);
-    const chequeTotal = filteredAdmissions.filter((a) => a.paymentMethod === 'cheque').reduce((s, a) => s + a.paidAmount, 0);
+    // Payment-method totals use actual allocated amounts when available (e.g. deposits + balance).
+    const collectedByMethod = (method: PaymentMethod) => filteredAdmissions.reduce((sum, admission) => {
+      if (admission.paymentBreakdown) return sum + (admission.paymentBreakdown[method] || 0);
+      return sum + (admission.paymentMethod === method ? admission.paidAmount : 0);
+    }, 0);
+    const posTotal = collectedByMethod('pos');
+    const cardTotal = collectedByMethod('card_to_card');
+    const cashTotal = collectedByMethod('cash');
+    const chequeTotal = collectedByMethod('cheque');
 
     // By the 3 main clinic departments (۱. خدمات زیبایی  ۲. خدمات لیزر بانوان  ۳. خدمات لیزر آقایان)
     const beautyAdmissions = filteredAdmissions.filter(
