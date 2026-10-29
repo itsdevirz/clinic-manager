@@ -21,6 +21,7 @@
     "@avan-persian/react": "^0.1.2",
     "@avan-persian/themes": "^0.1.1",
     "@google/genai": "^2.4.0",
+    "axios": "^1.7.9",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/api": "^2.12.3",
     "@vitejs/plugin-react": "^6.1.1",
