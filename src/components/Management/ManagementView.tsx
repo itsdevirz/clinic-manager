@@ -242,7 +242,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
       const end = customEndDate || '9999/99/99';
       return activeAdmissions.filter((a) => a.date >= start && a.date <= end);
     }
-    return admissions;
+    return activeAdmissions;
   }, [admissions, dateFilterMode, selectedDayDate, selectedMonth, selectedYear, customStartDate, customEndDate]);
 
   const activeRangeTitle = useMemo(() => {
