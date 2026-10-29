@@ -196,7 +196,7 @@ export default function App() {
     const fingerprint = getInvoiceFingerprint(admission);
     const previousAttemptAt = invoiceFingerprints.current.get(fingerprint);
     const duplicate = clinicData.admissions.some(existing =>
-      existing.status !== 'cancelled' && getInvoiceFingerprint(existing) === fingerprint
+      existing.status !== 'cancelled' && existing.registrationStatus !== 'temporary' && getInvoiceFingerprint(existing) === fingerprint
     ) || (previousAttemptAt !== undefined && Date.now() - previousAttemptAt < 10000);
     if (duplicate) {
       addToast('این فاکتور کاملاً مشابه قبلاً ثبت شده است؛ از ثبت تکراری جلوگیری شد.', 'error');
