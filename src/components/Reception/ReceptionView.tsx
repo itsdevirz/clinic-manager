@@ -53,7 +53,7 @@ interface ReceptionViewProps {
   operators: Operator[];
   consumablesList: { name: string; cost: number }[];
   preselectedPatientId?: string;
-  onAdmissionCreated: (admission: Admission, reminder?: FollowUpReminder) => void;
+  onAdmissionCreated: (admission: Admission, reminder?: FollowUpReminder) => boolean;
   onPatientCreated?: (patient: Patient) => void;
   onOpenPatientDossier: (patientId: string) => void;
 }
@@ -529,7 +529,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       };
     }
 
-    onAdmissionCreated(newAdmission, reminderPayload);
+    if (!onAdmissionCreated(newAdmission, reminderPayload)) return;
 
     if (registrationStatus === 'final' && enableFollowUp && followUpDate && followUpTime && selectedPatient.phone?.trim()) {
       fetch(getApiUrl('/api/sms/appointment'), {
