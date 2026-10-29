@@ -170,7 +170,6 @@ export default function App() {
     patientId: admission.patientId,
     date: admission.date,
     serviceItems: (admission.serviceItems || []).map(item => ({
-      serviceId: item.serviceId,
       serviceName: item.serviceName.trim().toLocaleLowerCase(),
       quantity: item.quantity,
       unitPrice: item.unitPrice,
