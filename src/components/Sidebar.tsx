@@ -4,6 +4,7 @@ import {
   UserRoundPlus,
   UsersRound,
   CalendarClock,
+  Receipt,
   ShieldCheck,
   Settings2,
   ChevronLeft,
@@ -32,6 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'reception' as TabType, label: 'پذیرش بیمار', description: 'ثبت مراجعه جدید', icon: UserRoundPlus },
     { id: 'patients' as TabType, label: 'پرونده بیماران', description: 'اطلاعات و سوابق', icon: UsersRound },
     { id: 'followups' as TabType, label: 'پیگیری مراجعات', description: 'یادآوری نوبت‌ها', icon: CalendarClock, badge: overdueCount > 0 ? overdueCount : undefined },
+    { id: 'invoices' as TabType, label: 'فاکتورها و بیعانه', description: 'ابطال و تسویه عمل‌ها', icon: Receipt },
     { id: 'management' as TabType, label: 'مدیریت مطب', description: 'گزارش‌ها و تنظیمات مدیریتی', icon: ShieldCheck, isProtected: true },
     { id: 'settings' as TabType, label: 'مشخصات مطب', description: 'اطلاعات و سربرگ', icon: Settings2 },
   ];
