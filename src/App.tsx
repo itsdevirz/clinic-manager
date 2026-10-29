@@ -165,7 +165,7 @@ export default function App() {
   }, [clinicData.followUps, today]);
 
   // Guard against rapid double-clicks as well as already-saved duplicate invoices.
-  const invoiceFingerprints = useRef<Set<string>>(new Set());
+  const invoiceFingerprints = useRef<Map<string, number>>(new Map());
   const getInvoiceFingerprint = (admission: Admission) => JSON.stringify({
     patientId: admission.patientId,
     date: admission.date,
@@ -189,14 +189,15 @@ export default function App() {
   // Actions
   const handleAdmissionCreated = (admission: Admission, reminder?: FollowUpReminder): boolean => {
     const fingerprint = getInvoiceFingerprint(admission);
+    const previousAttemptAt = invoiceFingerprints.current.get(fingerprint);
     const duplicate = clinicData.admissions.some(existing =>
       existing.status !== 'cancelled' && getInvoiceFingerprint(existing) === fingerprint
-    ) || invoiceFingerprints.current.has(fingerprint);
+    ) || (previousAttemptAt !== undefined && Date.now() - previousAttemptAt < 10000);
     if (duplicate) {
       addToast('این فاکتور کاملاً مشابه قبلاً ثبت شده است؛ از ثبت تکراری جلوگیری شد.', 'error');
       return false;
     }
-    invoiceFingerprints.current.add(fingerprint);
+    invoiceFingerprints.current.set(fingerprint, Date.now());
     setClinicData((prev) => ({
       ...prev,
       admissions: [admission, ...prev.admissions],
@@ -380,6 +381,7 @@ export default function App() {
                 { id: 'reception' as TabType, label: 'پذیرش' },
                 { id: 'patients' as TabType, label: 'پرونده بیماران' },
                 { id: 'followups' as TabType, label: 'یادآوری مراجعات' },
+                { id: 'invoices' as TabType, label: 'فاکتورها و بیعانه' },
                 { id: 'management' as TabType, label: 'مدیریت مطب' },
                 { id: 'settings' as TabType, label: 'تنظیمات' },
               ].map((item) => (
