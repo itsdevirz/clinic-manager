@@ -32,7 +32,7 @@ jobs:
 
       # Work around npm's missing optional native binding in the committed lockfile on Windows runners.
       - name: ترمیم وابستگی بومی Vite در ویندوز
-        run: npm install --no-save --legacy-peer-deps @rolldown/binding-win32-x64-msvc@1.2.13 lightningcss-win32-x64-msvc@1.33.0 @tailwindcss/oxide-win32-x64-msvc@4.3.3 @esbuild/win32-x64@0.25.12
+        run: npm install --no-save --legacy-peer-deps @rolldown/binding-win32-x64-msvc@1.2.13 lightningcss-win32-x64-msvc@1.33.0 @tailwindcss/oxide-win32-x64-msvc@4.3.3 @esbuild/win32-x64@0.25.12 @tauri-apps/cli-win32-x64-msvc@2.12.2
 
       - name: بیلد کامل فرانت‌اند و بکند متصل دیتابیس
         run: npm run build:all
