@@ -185,10 +185,11 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
     | 'consumables'
     | 'admin_tools';
   const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>('financial');
+  const activeAdmissions = admissions.filter((admission) => admission.status !== 'cancelled');
 
   // Count of active receivables (cheques + unpaid invoice debts)
   const activeReceivablesCount = useMemo(() => {
-    return admissions.filter((a) => {
+    return activeAdmissions.filter((a) => {
       if (a.status === 'cancelled') return false;
       const hasCheque = a.paymentMethod === 'cheque' || a.paymentMethods?.includes('cheque') || !!a.chequeDetails;
       if (hasCheque && a.chequeDetails) {
@@ -226,20 +227,20 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
   // Filter admissions by active date filter mode
   const filteredAdmissions = useMemo(() => {
     if (dateFilterMode === 'daily') {
-      return admissions.filter((a) => a.date === selectedDayDate);
+      return activeAdmissions.filter((a) => a.date === selectedDayDate);
     }
     if (dateFilterMode === 'monthly') {
       const monthPrefix = `${selectedYear}/${String(selectedMonth).padStart(2, '0')}`;
-      return admissions.filter((a) => a.date.startsWith(monthPrefix));
+      return activeAdmissions.filter((a) => a.date.startsWith(monthPrefix));
     }
     if (dateFilterMode === 'yearly') {
       const yearPrefix = `${selectedYear}/`;
-      return admissions.filter((a) => a.date.startsWith(yearPrefix));
+      return activeAdmissions.filter((a) => a.date.startsWith(yearPrefix));
     }
     if (dateFilterMode === 'custom_range') {
       const start = customStartDate || '0000/00/00';
       const end = customEndDate || '9999/99/99';
-      return admissions.filter((a) => a.date >= start && a.date <= end);
+      return activeAdmissions.filter((a) => a.date >= start && a.date <= end);
     }
     return admissions;
   }, [admissions, dateFilterMode, selectedDayDate, selectedMonth, selectedYear, customStartDate, customEndDate]);
@@ -264,7 +265,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
       const days = [];
       for (let i = 6; i >= 0; i--) {
         const d = addDaysToPersianDate(selectedDayDate, -i);
-        const dayAdmissions = admissions.filter((a) => a.date === d);
+        const dayAdmissions = activeAdmissions.filter((a) => a.date === d);
         const rev = dayAdmissions.reduce((sum, a) => sum + a.paidAmount, 0);
         const label = i === 0 ? (selectedDayDate === today ? 'امروز' : selectedDayDate.split('/')[2]) : i === 1 ? 'دیروز' : d.split('/')[2];
         days.push({ label, fullDate: d, amount: rev, count: dayAdmissions.length });
@@ -280,7 +281,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
         { label: 'هفته چهارم و پنجم (۲۲-۳۱)', range: [22, 31] },
       ];
       return weeks.map((w) => {
-        const weekAdmissions = admissions.filter((a) => {
+        const weekAdmissions = activeAdmissions.filter((a) => {
           if (!a.date.startsWith(`${selectedYear}/${mStr}`)) return false;
           const dayNum = parseInt(a.date.split('/')[2], 10);
           return dayNum >= w.range[0] && dayNum <= w.range[1];
@@ -293,7 +294,7 @@ export const ManagementView: React.FC<ManagementViewProps> = ({
       return PERSIAN_MONTHS.map((mName, idx) => {
         const mStr = String(idx + 1).padStart(2, '0');
         const prefix = `${selectedYear}/${mStr}`;
-        const monthAdmissions = admissions.filter((a) => a.date.startsWith(prefix));
+        const monthAdmissions = activeAdmissions.filter((a) => a.date.startsWith(prefix));
         const rev = monthAdmissions.reduce((s, a) => s + a.paidAmount, 0);
         return { label: mName, amount: rev, count: monthAdmissions.length };
       });
