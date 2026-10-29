@@ -28,7 +28,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: نصب وابستگی‌های پکیج‌ها
-        run: npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps --include=optional
+
+      # Work around npm's missing optional native binding in the committed lockfile on Windows runners.
+      - name: ترمیم وابستگی بومی Vite در ویندوز
+        run: npm install --no-save --legacy-peer-deps @rolldown/binding-win32-x64-msvc@1.2.13
 
       - name: بیلد کامل فرانت‌اند و بکند متصل دیتابیس
         run: npm run build:all
