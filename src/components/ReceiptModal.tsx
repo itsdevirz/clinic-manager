@@ -46,6 +46,17 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ admission, settings,
   // Current print generation timestamp
   const nowPersianTime = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
 
+  const serviceRows = admission.serviceItems?.length
+    ? admission.serviceItems
+    : [{
+        serviceName: admission.serviceName,
+        quantity: admission.quantity || 1,
+        quantityLabel: String(admission.quantity || 1),
+        unitPrice: admission.basePrice || 0,
+        totalAmount: (admission.basePrice || 0) * (admission.quantity || 1),
+        details: admission.details,
+      }];
+
   // Calculate gross total
   const consumablesTotal = (admission.consumables || []).reduce((acc, c) => acc + (c.cost || 0), 0);
   const baseServiceTotal = admission.serviceItems?.length
@@ -229,58 +240,36 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ admission, settings,
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Primary Service Row */}
-                    <tr className="border-b border-slate-800">
-                      <td className="p-1.5 text-center font-bold font-mono">۱</td>
-                      <td className="p-1.5">
-                        <div className="font-bold text-slate-900 text-xs">{admission.serviceName}</div>
-                        {/* Clinical Sub-details */}
-                        <div className="space-y-0.5 mt-0.5 text-[11px] text-slate-600">
-                          {admission.details.laserAreas && admission.details.laserAreas.length > 0 && (
-                            <p>
-                              • نواحی لیزر: <span className="font-medium text-slate-800">{admission.details.laserAreas.join('، ')}</span>
-                              {admission.details.sessionNumber && (
-                                <span> · جلسه {admission.details.sessionNumber} {admission.details.totalSessions ? `از پکیج ${admission.details.totalSessions} جلسه‌ای` : ''}</span>
-                              )}
-                            </p>
-                          )}
-                          {admission.details.injectionSites && admission.details.injectionSites.length > 0 && (
-                            <p>
-                              • محل‌های تزریق: <span className="font-medium text-slate-800">{admission.details.injectionSites.join('، ')}</span>
-                            </p>
-                          )}
-                          {admission.details.surgeryType && (
-                            <p>
-                              • نوع عمل جراحی: <span className="font-medium text-slate-800">{admission.details.surgeryType}</span>
-                            </p>
-                          )}
-                          {admission.details.mesoType && (
-                            <p>
-                              • نوع ماده / کوکتل مزو: <span className="font-medium text-slate-800">{admission.details.mesoType}</span>
-                            </p>
-                          )}
-                          {admission.details.notes && (
-                            <p className="text-slate-500 italic">
-                              • توضیحات: {admission.details.notes}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-1.5 text-center font-mono font-medium">{admission.serviceItems?.length === 1 ? admission.serviceItems[0].quantityLabel : admission.serviceItems && admission.serviceItems.length > 1 ? '—' : (admission.quantity || 1)}</td>
-                      <td className="p-1.5 text-left font-mono tabular-nums">{formatToman(admission.basePrice)}</td>
-                      <td className="p-1.5 text-left font-mono tabular-nums text-rose-700">
-                        {admission.discount > 0 ? formatToman(admission.discount) : '۰'}
-                      </td>
-                      <td className="p-1.5 text-left font-mono font-bold tabular-nums">
-                        {formatToman(admission.serviceItems && admission.serviceItems.length > 1 ? admission.finalAmount : (admission.basePrice * (admission.quantity || 1)) - admission.discount)}
-                      </td>
-                    </tr>
+                    {serviceRows.map((item, idx) => {
+                      const details = item.details || {};
+                      const itemTotal = Number(item.totalAmount ?? (Number(item.unitPrice || 0) * Number(item.quantity || 1)));
+                      const itemDiscount = idx === 0 ? Number(admission.discount || 0) : 0;
+                      return (
+                        <tr key={`service-${idx}`} className="border-b border-slate-800">
+                          <td className="p-1.5 text-center font-bold font-mono">{(idx + 1).toLocaleString('fa-IR')}</td>
+                          <td className="p-1.5">
+                            <div className="font-bold text-slate-900 text-xs">{item.serviceName || admission.serviceName}</div>
+                            <div className="space-y-0.5 mt-0.5 text-[11px] text-slate-600">
+                              {details.laserAreas?.length > 0 && <p>• نواحی لیزر: <span className="font-medium text-slate-800">{details.laserAreas.join('، ')}</span>{details.sessionNumber && <span> · جلسه {details.sessionNumber} {details.totalSessions ? `از پکیج ${details.totalSessions} جلسه‌ای` : ''}</span>}</p>}
+                              {details.injectionSites?.length > 0 && <p>• محل‌های تزریق: <span className="font-medium text-slate-800">{details.injectionSites.join('، ')}</span></p>}
+                              {details.surgeryType && <p>• نوع عمل جراحی: <span className="font-medium text-slate-800">{details.surgeryType}</span></p>}
+                              {details.mesoType && <p>• نوع ماده / کوکتل مزو: <span className="font-medium text-slate-800">{details.mesoType}</span></p>}
+                              {details.notes && <p className="text-slate-500 italic">• توضیحات: {details.notes}</p>}
+                            </div>
+                          </td>
+                          <td className="p-1.5 text-center font-mono font-medium">{item.quantityLabel || Number(item.quantity || 1).toLocaleString('fa-IR')}</td>
+                          <td className="p-1.5 text-left font-mono tabular-nums">{formatToman(Number(item.unitPrice ?? admission.basePrice ?? 0))}</td>
+                          <td className="p-1.5 text-left font-mono tabular-nums text-rose-700">{itemDiscount > 0 ? formatToman(itemDiscount) : '۰'}</td>
+                          <td className="p-1.5 text-left font-mono font-bold tabular-nums">{formatToman(Math.max(0, itemTotal - itemDiscount))}</td>
+                        </tr>
+                      );
+                    })}
 
                     {/* Consumables Rows (if any) */}
                     {admission.consumables && admission.consumables.length > 0 && (
                       admission.consumables.map((c, idx) => (
                         <tr key={idx} className="border-b border-slate-800 bg-slate-50/50">
-                          <td className="p-1.5 text-center font-bold font-mono">{idx + 2}</td>
+                          <td className="p-1.5 text-center font-bold font-mono">{(serviceRows.length + idx + 1).toLocaleString('fa-IR')}</td>
                           <td className="p-1.5">
                             <span className="font-medium text-slate-800">اقلام و مواد مصرفی: {c.name}</span>
                           </td>
